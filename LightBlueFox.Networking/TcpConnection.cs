@@ -23,7 +23,7 @@ namespace LightBlueFox.Networking
         /// <param name="s"></param>
         /// <exception cref="ArgumentException">Thrown if <see cref="Socket.SocketType"/> is not <see cref="SocketType.Stream"/> or <see cref="Socket.ProtocolType"/> is not <see cref="ProtocolType.Tcp"/>.</exception>
         /// <exception cref="ArgumentNullException">Thrown if <see cref="Socket.RemoteEndPoint"/> is null.</exception>
-        public TcpConnection(Socket s) : base(s, (IPEndPoint)(s.RemoteEndPoint ?? throw new ArgumentNullException("The remote endpoint was null.")))
+        public TcpConnection(Socket s) : base(s, (IPEndPoint)(s.RemoteEndPoint ?? throw new ArgumentNullException("s.RemoteEndpoint")))
         {
             if (s.ProtocolType != ProtocolType.Tcp || s.SocketType != SocketType.Stream) throw new ArgumentException("The given socket does not seem to be a tcp socket!");
             if (s.Connected == false) throw new ArgumentException("The given socket is not connected!");
@@ -43,6 +43,9 @@ namespace LightBlueFox.Networking
         
         }
 
+        /// <summary>
+        /// Just writes data to socket stream
+        /// </summary>
         protected override void WriteToSocket(byte[] data)
         {
             Socket.Send(data);
@@ -92,7 +95,7 @@ namespace LightBlueFox.Networking
             }
 
             /// <summary>
-            /// Creates a new readstate representing the next buffer to be read.
+            /// Creates a new readstate representing the next message to be read.
             /// </summary>
             /// <param name="buffer">The actual buffer rented from the ArrayPool.</param>
             /// <param name="Length">A length equal or smaller that the size of the buffer. This is how many bytes will actually be read.</param>
@@ -106,6 +109,11 @@ namespace LightBlueFox.Networking
                 OnBufferFilled = action;
             }
 
+            /// <summary>
+            /// Creates a new readstate that represents a length prefix to be read.
+            /// </summary>
+            /// <param name="buffer"></param>
+            /// <param name="action"></param>
             public ReadState(byte[] buffer, BufferAction action)
             {
                 Buffer = buffer;
@@ -142,7 +150,7 @@ namespace LightBlueFox.Networking
                         }
                     }
                 }
-                catch (Exception ex) when (ex is SocketException || ex is ObjectDisposedException || ex is ConnectionDeconstructedException)
+                catch (Exception ex) when (ex is SocketException || ex is ObjectDisposedException)
                 {
                     CallConnectionClosed(ex);
                 }
@@ -197,6 +205,7 @@ namespace LightBlueFox.Networking
                 {
                     queueWorker = WorkOnQueue();
                 }
+                
                 _keepMessagesInOrder = value;
             } 
         }

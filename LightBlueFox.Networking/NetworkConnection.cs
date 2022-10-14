@@ -62,8 +62,6 @@ namespace LightBlueFox.Networking
 
         protected abstract void StartListening();
 
-        private Mutex BlockSocketWrite = new Mutex(false);
-
         private ConcurrentQueue<ReadOnlyMemory<byte>> writeMessages = new ConcurrentQueue<ReadOnlyMemory<byte>>();
 
 
@@ -73,18 +71,21 @@ namespace LightBlueFox.Networking
         /// <summary>
         /// If this many elements are reached in the write queue, a compound packet is sent.
         /// </summary>
-        public static int WriteQueueMaxElements = 5;
+        private readonly static int WriteQueueMaxElements = 5;
 
         /// <summary>
-        /// 
+        /// Automatically flush queue every x ms.
         /// </summary>
-        public static int WriteQueueFlushInterval = 5;
+        private readonly static int WriteQueueFlushInterval = 5;
 
         static NetworkConnection()
         {
             QueueFlusher();
         }
 
+        /// <summary>
+        /// This function requests a new queue flush for all active connections every <see cref="WriteQueueFlushInterval"/> ms.
+        /// </summary>
         private static async void QueueFlusher()
         {
             while (true)
@@ -99,11 +100,11 @@ namespace LightBlueFox.Networking
 
         #endregion
 
-        private Mutex _sendMutex = new Mutex();
+        private readonly Mutex _sendMutex = new Mutex();
         private async void FlushWriteQueue()
         {
             await Task.Run(() => {
-                if(writeMessages.Count > 0)
+                if(!writeMessages.IsEmpty)
                 {
                     using (MemoryStream ms = new MemoryStream())
                     {
@@ -111,10 +112,10 @@ namespace LightBlueFox.Networking
                         _sendMutex.WaitOne();
                         while (writeMessages.TryDequeue(out message))
                         {
-                            // Stay within some safe packet size limits. If we dequeue too much, push it back in (this should preserve the order)
+                            // Stay within some safe packet size limits. If we dequeue too much, push it back in (this does not preserve order, how do I fix this :C )
                             if(Protocol == Protocol.UDP &&  ms.Length + message.Length + 4 > 59900)
                             {
-                                writeMessages.Prepend(message);
+                                writeMessages.Enqueue(message);
                                 break;
                             }
                             Span<byte> sizeSpan = new byte[4];
@@ -122,28 +123,27 @@ namespace LightBlueFox.Networking
                             ms.Write(sizeSpan);
                             ms.Write(message.Span);
                         }
-                        try
-                        {
-                            WriteToSocket(ms.ToArray());
-                        }
-                        catch (ConnectionDeconstructedException)
-                        {
-                            if(OnQueueFlushRequested?.GetInvocationList().Contains(FlushWriteQueue) ?? false)
-                                OnQueueFlushRequested -= FlushWriteQueue;
-                        }
+                        WriteToSocket(ms.ToArray());
                         _sendMutex.ReleaseMutex();
                     }
 
                 }
             });
         }
+        /// <summary>
+        /// Ask the connection to write a new packet to the socket.
+        /// </summary>
         public override void WritePacket(ReadOnlyMemory<byte> Packet)
         {
+            if (IsClosed) throw new InvalidOperationException("Socket is closed.");
             if (Protocol == Protocol.UDP && Packet.Length + 4 > 59900) throw new ArgumentException("A udp message may not be over 59900 bytes in length!");
             writeMessages.Enqueue(Packet);
             if (writeMessages.Count > WriteQueueMaxElements) FlushWriteQueue();
         }
 
+        /// <summary>
+        /// This does the protocol-specific write to the socket.
+        /// </summary>
         protected abstract void WriteToSocket(byte[] data);
 
         /// <summary>
@@ -161,17 +161,11 @@ namespace LightBlueFox.Networking
             }
             catch (InvalidOperationException) { }
             IsClosed = true;
+            OnQueueFlushRequested -= FlushWriteQueue;
         }
 
         public bool IsClosed { get; private set; } = false;
 
-        public Socket DuplicateConnectionSocket()
-        {
-            Socket s = new Socket(Socket.AddressFamily, Socket.SocketType, Socket.ProtocolType);
-            s.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            s.Bind(Socket.LocalEndPoint ?? throw new InvalidOperationException("Cannot duplicate unbound socket!"));
-            return s;
-        }
     }
 
 
