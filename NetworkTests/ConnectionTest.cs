@@ -28,7 +28,7 @@ namespace NetworkTests
 
             var d = Helpers.GenerateRandomData(1, 40000);
 
-            receiver.PacketHandler = (e, args) => { 
+            receiver.MessageHandler = (e, args) => { 
                 tcs.SetResult(e.ToArray());
             };
             sender.WritePacket(d[0].ToArray());
@@ -47,7 +47,7 @@ namespace NetworkTests
             TaskCompletionSource<List<byte>[]> tcs = new TaskCompletionSource<List<byte>[]>();
 
             List<List<byte>> receivedPackets = new List<List<byte>>();
-            receiver.PacketHandler = (e, args) =>
+            receiver.MessageHandler = (e, args) =>
             {
                 receivedPackets.Add(e.ToArray().ToList());
                 if(receivedPackets.Count == d.Length) tcs.SetResult(receivedPackets.ToArray());
@@ -70,7 +70,7 @@ namespace NetworkTests
 
             var d = Helpers.GenerateRandomData(1, 30000);
 
-            receiver.PacketHandler = (e, args) =>
+            receiver.MessageHandler = (e, args) =>
             {
                 tcs.SetResult(e.ToArray());
             };
@@ -89,7 +89,7 @@ namespace NetworkTests
             var d = Helpers.GenerateConsistentData(666, 30000, out nrOfBytes, 0);
 
             int nrOfPackets = 0;
-            receiver.PacketHandler = (e, args) =>
+            receiver.MessageHandler = (e, args) =>
             {
                 Assert.IsTrue(Helpers.TestConsistency(e.ToArray()));
                 nrOfPackets++;

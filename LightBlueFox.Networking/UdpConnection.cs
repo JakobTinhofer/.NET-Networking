@@ -66,12 +66,12 @@ namespace LightBlueFox.Networking
                         //Need to check mode instead of KeepMessagesInOrder since that could have changed between some of the packets
                         if (mode)
                         {
-                            PacketHandler?.Invoke(payload.Span, args);
+                            MessageHandler?.Invoke(payload.Span, args);
                         }
                         else
                         {
                             up.MessagesRemaining += 1;
-                            Task.Run(() => { PacketHandler?.Invoke(payload.Span, args); up.MessagesRemaining--; });
+                            Task.Run(() => { MessageHandler?.Invoke(payload.Span, args); up.MessagesRemaining--; });
                         }
 
                         index += payload_len;
@@ -96,13 +96,13 @@ namespace LightBlueFox.Networking
                     try
                     {
                         
-                        EndPoint ep = _remoteEndpoint ?? new IPEndPoint(IPAddress.Any, 0);
+                        EndPoint ep = RemoteEndpoint ?? new IPEndPoint(IPAddress.Any, 0);
                         int len = Socket.ReceiveFrom(syncBuffer, ref ep);
                         
                         
-                        if (_remoteEndpoint == null || _remoteEndpoint == ep)
+                        if (RemoteEndpoint == null || RemoteEndpoint == ep)
                         {
-                            if (len > 0) Deconstruct(syncBuffer, len, mode, new UDPPacketArgs(this, _remoteEndpoint != null, ep)).Wait();
+                            if (len > 0) Deconstruct(syncBuffer, len, mode, new UDPPacketArgs(this, RemoteEndpoint != null, ep)).Wait();
                         }
 
 
@@ -126,8 +126,8 @@ namespace LightBlueFox.Networking
         {
             try
             {
-                if (_remoteEndpoint == null) throw new InvalidOperationException("Cannot use Write without knowing the recipient! Either set a default recipient, or use WriteTo!");
-                Socket.SendTo(data, _remoteEndpoint);
+                if (RemoteEndpoint == null) throw new InvalidOperationException("Cannot use Write without knowing the recipient! Either set a default recipient, or use WriteTo!");
+                Socket.SendTo(data, RemoteEndpoint);
             }
             catch (Exception ex) when (ex is SocketException || ex is ObjectDisposedException)
             {
