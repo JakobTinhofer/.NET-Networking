@@ -13,7 +13,7 @@ TaskCompletionSource<List<byte>[]> tcs = new TaskCompletionSource<List<byte>[]>(
 
 List<List<byte>> receivedPackets = new List<List<byte>>();
 int i = 0;
-receiver.PacketHandler = (e, sender) =>
+receiver.MessageHandler = (e, sender) =>
 {
     Console.WriteLine(i + "r");
     i++;

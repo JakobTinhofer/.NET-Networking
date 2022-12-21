@@ -6,7 +6,7 @@
         /// <summary>
         /// A method which handles any incomming packets
         /// </summary>
-        public PacketHandler? PacketHandler { get; set; }
+        public MessageHandler? MessageHandler { get; set; }
         
         /// <summary>
         /// Gets called when the connection is terminated. An exception is provided as the reason for the disconnection.
@@ -34,7 +34,7 @@
     /// </summary>
     /// <param name="sender">The connection which received the packet.</param>
     /// <param name="packet">The raw data that was received.</param>
-    public delegate void PacketHandler(ReadOnlySpan<byte> packet, PacketArgs args);
+    public delegate void MessageHandler(ReadOnlySpan<byte> packet, PacketArgs args);
 
     /// <summary>
     /// Describes methods which can be used to listen to the <see cref="Connection.ConnectionDisconnected"/> event.

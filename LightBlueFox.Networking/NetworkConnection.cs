@@ -17,27 +17,31 @@ namespace LightBlueFox.Networking
     public abstract class NetworkConnection : Connection
     {
         #region Private Fields
-        /// <summary>
-        /// The socket that is used to communicate to the remote client with.
-        /// </summary>
-        protected Socket Socket;
-        protected EndPoint _remoteEndpoint;
-        protected bool _keepMessagesInOrder;
+
+        private Socket _socket;
+        private EndPoint _remoteEndpoint;
+        private bool _keepMessagesInOrder;
 
 
 
         #endregion
 
-        #region Public Properties
+        #region Properties
+        
+        protected Socket Socket {get{return _socket;}}
+        public abstract bool KeepMessagesInOrder { get; set; }
+        
         /// <summary>
         /// The endpoint (as seen from the perspective of this device) of the remote client.
         /// Keep in mind, this might not be the actual endpoint of the device (If the connection is using a relay server,
         /// this will be the EndPoint of the mirror server, not the client on the other side)
         /// </summary>
         public IPEndPoint RemoteEndpoint { get { return (IPEndPoint)_remoteEndpoint; } }
+        
+        
         public Protocol Protocol { get; protected set; }
 
-        public abstract bool KeepMessagesInOrder { get; set; }
+        
         #endregion
 
         #region Constructors
@@ -52,7 +56,7 @@ namespace LightBlueFox.Networking
         {
             if ((s.ProtocolType != ProtocolType.Tcp && s.ProtocolType != ProtocolType.Udp)) throw new ArgumentException("This is not the right protocol. Make sure that your socket uses either udp or tcp!");
             Protocol = (Protocol)s.ProtocolType;
-            Socket = s;
+            _socket = s;
             _remoteEndpoint = re;
             OnQueueFlushRequested += FlushWriteQueue;
             KeepMessagesInOrder = true;
