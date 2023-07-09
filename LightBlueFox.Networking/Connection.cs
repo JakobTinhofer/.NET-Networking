@@ -30,7 +30,7 @@
     }
 
     /// <summary>
-    /// Describes a method equiped to handle packets comming from an active <see cref="Connection"/>.
+    /// Describes a method equipped to handle packets coming from an active <see cref="Connection"/>.
     /// </summary>
     /// <param name="sender">The connection which received the packet.</param>
     /// <param name="packet">The raw data that was received.</param>
