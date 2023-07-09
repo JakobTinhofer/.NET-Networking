@@ -173,7 +173,7 @@ namespace LightBlueFox.Networking
         }
 
         /// <summary>
-        /// Calls the <see cref="PacketHandler"/>.
+        /// Calls the <see cref="MessageHandler"/>.
         /// </summary>
         private ReadState MessageAction(ReadOnlyMemory<byte> message)
         {
@@ -183,7 +183,7 @@ namespace LightBlueFox.Networking
             }
             else
             {
-                Task.Run(() => { PacketHandler?.Invoke(message.Span, new PacketArgs(this)); ReadState.ReturnMemory(message); });
+                Task.Run(() => { MessageHandler?.Invoke(message.Span, new PacketArgs(this)); ReadState.ReturnMemory(message); });
             }
             return new ReadState(sizeBuffer, SizePrefixAction);
         }
@@ -192,9 +192,9 @@ namespace LightBlueFox.Networking
 
         #region Message Processing
 
-        
+        private bool _keepMessagesInOrder;
         /// <summary>
-        /// If true, the <see cref="PacketHandler"/> needs to return before the next message is processed and the handler is called again. Packets received in the meantime will be queued up.
+        /// If true, the <see cref="MessageHandler"/> needs to return before the next message is processed and the handler is called again. Packets received in the meantime will be queued up.
         /// </summary>
         public override bool KeepMessagesInOrder { 
             get {
@@ -220,7 +220,7 @@ namespace LightBlueFox.Networking
                 while (KeepMessagesInOrder || messages.Count > 0){
                     if (messages.TryTake(out message))
                     {
-                        PacketHandler?.Invoke(message.Span, new PacketArgs(this));
+                        MessageHandler?.Invoke(message.Span, new PacketArgs(this));
                         ReadState.ReturnMemory(message);
                     }
                 }
