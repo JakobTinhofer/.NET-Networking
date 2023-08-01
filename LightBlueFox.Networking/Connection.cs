@@ -1,13 +1,15 @@
-﻿namespace LightBlueFox.Networking
+﻿using System.Collections.Concurrent;
+
+namespace LightBlueFox.Networking
 {
     // This describes any connection between two programs, be it over the internet or whatever other communication media.
     public abstract class Connection
     {
         /// <summary>
-        /// A method which handles any incomming packets
+        /// A method which handles any incoming packets
         /// </summary>
         public MessageHandler? MessageHandler { get; set; }
-        
+
         /// <summary>
         /// Gets called when the connection is terminated. An exception is provided as the reason for the disconnection.
         /// </summary>
@@ -25,16 +27,13 @@
         {
             Task.Run(() => ConnectionDisconnected?.Invoke(this, ex));
         }
-
-        
     }
-
     /// <summary>
     /// Describes a method equipped to handle packets coming from an active <see cref="Connection"/>.
     /// </summary>
     /// <param name="sender">The connection which received the packet.</param>
-    /// <param name="packet">The raw data that was received.</param>
-    public delegate void MessageHandler(ReadOnlySpan<byte> packet, PacketArgs args);
+    /// <param name="msg">The raw data that was received.</param>
+    public delegate void MessageHandler(ReadOnlySpan<byte> msg, MessageArgs args);
 
     /// <summary>
     /// Describes methods which can be used to listen to the <see cref="Connection.ConnectionDisconnected"/> event.

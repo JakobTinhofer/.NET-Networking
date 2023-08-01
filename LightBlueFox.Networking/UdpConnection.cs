@@ -13,7 +13,7 @@ namespace LightBlueFox.Networking
 {
     public class UdpConnection : NetworkConnection
     {
-        public UdpConnection(Socket s, IPEndPoint re) : base(s, re)
+        public UdpConnection(Socket s, IPEndPoint remoteEndpoint) : base(s, remoteEndpoint)
         {
             StartListening();
         }

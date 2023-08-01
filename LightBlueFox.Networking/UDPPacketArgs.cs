@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace LightBlueFox.Networking
 {
-    internal class UDPPacketArgs : PacketArgs
+    internal class UDPPacketArgs : MessageArgs
     {
         public readonly bool WasFixedReceiver;
         public EndPoint SenderEndpoint;

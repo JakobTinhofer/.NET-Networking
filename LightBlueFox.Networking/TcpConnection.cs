@@ -183,7 +183,7 @@ namespace LightBlueFox.Networking
             }
             else
             {
-                Task.Run(() => { MessageHandler?.Invoke(message.Span, new PacketArgs(this)); ReadState.ReturnMemory(message); });
+                Task.Run(() => { MessageHandler?.Invoke(message.Span, new MessageArgs(this)); ReadState.ReturnMemory(message); });
             }
             return new ReadState(sizeBuffer, SizePrefixAction);
         }
@@ -220,7 +220,7 @@ namespace LightBlueFox.Networking
                 while (KeepMessagesInOrder || messages.Count > 0){
                     if (messages.TryTake(out message))
                     {
-                        MessageHandler?.Invoke(message.Span, new PacketArgs(this));
+                        MessageHandler?.Invoke(message.Span, new MessageArgs(this));
                         ReadState.ReturnMemory(message);
                     }
                 }

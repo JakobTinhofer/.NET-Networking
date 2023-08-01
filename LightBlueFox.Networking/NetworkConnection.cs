@@ -31,6 +31,7 @@ namespace LightBlueFox.Networking
         protected Socket Socket {get{return _socket;}}
         public abstract bool KeepMessagesInOrder { get; set; }
         
+        
         /// <summary>
         /// The endpoint (as seen from the perspective of this device) of the remote client.
         /// Keep in mind, this might not be the actual endpoint of the device (If the connection is using a relay server,
@@ -50,14 +51,14 @@ namespace LightBlueFox.Networking
         /// Create a new Connection from an existing socket.
         /// </summary>
         /// <param name="s">The already established Socket. Make sure <see cref="Socket.ProtocolType"/> is either <see cref="ProtocolType.Udp"/> or <see cref="ProtocolType.Tcp"/>.</param>
-        /// <param name="re">The endpoint of the remote client.</param>
+        /// <param name="remoteEndpoint">The endpoint of the remote client.</param>
         /// <exception cref="ArgumentException">The given arguments were invalid. This is likely because the given Socket uses an invalid protocol.</exception>
-        public NetworkConnection(Socket s, IPEndPoint re)
+        public NetworkConnection(Socket s, IPEndPoint remoteEndpoint)
         {
             if ((s.ProtocolType != ProtocolType.Tcp && s.ProtocolType != ProtocolType.Udp)) throw new ArgumentException("This is not the right protocol. Make sure that your socket uses either udp or tcp!");
             Protocol = (Protocol)s.ProtocolType;
             _socket = s;
-            _remoteEndpoint = re;
+            _remoteEndpoint = remoteEndpoint;
             OnQueueFlushRequested += FlushWriteQueue;
             KeepMessagesInOrder = true;
         }

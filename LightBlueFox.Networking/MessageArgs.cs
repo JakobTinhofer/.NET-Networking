@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace LightBlueFox.Networking
 {
-    public class PacketArgs
+    public class MessageArgs
     {
         public readonly Connection Sender;
 
-        public PacketArgs(Connection sender)
+        public MessageArgs(Connection sender)
         {
             Sender = sender;
         }
