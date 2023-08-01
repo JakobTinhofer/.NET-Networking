@@ -13,14 +13,14 @@ Task<TcpConnection> acceptClient = Task<TcpConnection>.Run(() => {
     return new TcpConnection(server.AcceptSocket());
 });
 TcpConnection myConnection = new TcpConnection("127.0.0.1", 33333);
-myConnection.PacketHandler = MessageHandler;
+myConnection.MessageHandler = MessageHandler;
 
 TcpConnection serverSideConnection = acceptClient.Result; 
 serverSideConnection.WritePacket(Encoding.ASCII.GetBytes("Hello, world!"));
 
 Console.ReadKey(true);
 
-static void MessageHandler(ReadOnlySpan<byte> packet, PacketArgs args)
+static void MessageHandler(ReadOnlySpan<byte> packet, MessageArgs args)
 {
     Console.WriteLine("Received message of len {0} from server!", packet.Length);
     Console.WriteLine("Message: " + Encoding.ASCII.GetString(packet));
