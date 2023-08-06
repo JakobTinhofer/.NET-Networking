@@ -31,7 +31,7 @@ namespace NetworkTests
             receiver.MessageHandler = (e, args) => { 
                 tcs.SetResult(e.ToArray());
             };
-            sender.WritePacket(d[0].ToArray());
+            sender.WriteMessage(d[0].ToArray());
             Assert.IsTrue(Helpers.Compare(tcs.Task.GetAwaiter().GetResult(), d[0].ToArray()));
             sender.CloseConnection();
             
@@ -39,6 +39,7 @@ namespace NetworkTests
         [TestMethod]
         public void TestTcpConnection_MultiPacket()
         {
+
             (NetworkConnection sender, NetworkConnection receiver) = Helpers.GetTcpConnections(12312);
             (receiver as TcpConnection ?? throw new Exception()).KeepMessagesInOrder = true;
 
@@ -47,15 +48,17 @@ namespace NetworkTests
             TaskCompletionSource<List<byte>[]> tcs = new TaskCompletionSource<List<byte>[]>();
 
             List<List<byte>> receivedPackets = new List<List<byte>>();
+            
+            foreach (var item in d)
+            {
+                sender.WriteMessage(item.ToArray());
+            }
             receiver.MessageHandler = (e, args) =>
             {
                 receivedPackets.Add(e.ToArray().ToList());
-                if(receivedPackets.Count == d.Length) tcs.SetResult(receivedPackets.ToArray());
+                if (receivedPackets.Count == d.Length) tcs.SetResult(receivedPackets.ToArray());
             };
-            foreach (var item in d)
-            {
-                sender.WritePacket(item.ToArray());
-            }
+
             Assert.IsTrue(Helpers.CompareL(tcs.Task.GetAwaiter().GetResult(), d));
             sender.CloseConnection();
         }
@@ -74,7 +77,7 @@ namespace NetworkTests
             {
                 tcs.SetResult(e.ToArray());
             };
-            sender.WritePacket(d[0].ToArray());
+            sender.WriteMessage(d[0].ToArray());
             Assert.IsTrue(Helpers.Compare(tcs.Task.GetAwaiter().GetResult(), d[0].ToArray()));
             sender.CloseConnection();
         }
@@ -97,7 +100,7 @@ namespace NetworkTests
             };
             foreach (var item in d)
             {
-                sender.WritePacket(item.ToArray());
+                sender.WriteMessage(item.ToArray());
             }
             sender.CloseConnection();
         }
