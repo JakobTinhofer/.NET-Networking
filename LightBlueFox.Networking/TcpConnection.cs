@@ -46,9 +46,12 @@ namespace LightBlueFox.Networking
         /// <summary>
         /// Just writes data to socket stream
         /// </summary>
-        protected override void WriteToSocket(byte[] data)
+        protected override void WriteToSocket(ReadOnlyMemory<byte> data)
         {
-            Socket.Send(data);
+            byte[] sizePrefix = new byte[4];
+            BinaryPrimitives.WriteInt32LittleEndian(sizePrefix, data.Length);
+            Socket.Send(sizePrefix);
+            Socket.Send(data.Span);
         }
 
         #region Reading
@@ -73,8 +76,6 @@ namespace LightBlueFox.Networking
 
             public int Length;
 
-            public Memory<byte> Data;
-
             /// <summary>
             /// The index to which will be written next. If this index is equal to the length of <see cref="ReadState.Buffer"/>, the read is finished and <see cref="OnBufferFilled"/> will be called.
             /// </summary>
@@ -82,19 +83,7 @@ namespace LightBlueFox.Networking
 
             private static MemoryPool<byte> messageBufferPool = MemoryPool<byte>.Shared;
 
-
-            /// <summary>
-            /// Returns the array corresponding to the given buffer.
-            /// </summary>
-            /// <param name="bytes"></param>
-            public static void ReturnMemory(ReadOnlyMemory<byte> bytes)
-            {
-                byte[] byteArray;
-                #pragma warning disable CS8600
-                if (borrowedArrays.Remove(bytes, out byteArray))
-                    messageBufferPool.Return(byteArray, true);
-                #pragma warning restore CS8600
-            }
+            
 
             /// <summary>
             /// Creates a new readstate representing the next message to be read.
@@ -108,8 +97,6 @@ namespace LightBlueFox.Networking
                 Buffer = owner.Memory;
                 DoFree = (m, c) => { owner.Dispose(); };
                 this.Length = Length;
-                Data = new Memory<byte>(Buffer, 0, Length);
-                borrowedArrays.TryAdd(Data, Buffer);
                 OnBufferFilled = action;
             }
 
@@ -181,52 +168,14 @@ namespace LightBlueFox.Networking
         /// Calls the <see cref="MessageHandler"/>.
         /// </summary>
         private ReadState MessageAction(ReadOnlyMemory<byte> message, MessageReleasedHandler finishedHandling)
-            {
+        {
             MessageReceived(message, finishedHandling);
             return new ReadState(sizeBuffer, SizePrefixAction);
         }
 
         #endregion
 
-        #region Message Processing
-
-        private bool _keepMessagesInOrder;
-        /// <summary>
-        /// If true, the <see cref="MessageHandler"/> needs to return before the next message is processed and the handler is called again. Packets received in the meantime will be queued up.
-        /// </summary>
-        public override bool KeepMessagesInOrder { 
-            get {
-                return _keepMessagesInOrder;
-            } 
-            set {
-                if (value && (queueWorker == null || queueWorker.IsCompleted))
-                {
-                    queueWorker = WorkOnQueue();
-                }
-                
-                _keepMessagesInOrder = value;
-            } 
-        }
-
-
-        private BlockingCollection<ReadOnlyMemory<byte>> messages = new BlockingCollection<ReadOnlyMemory<byte>>();
-        private Task? queueWorker;
-        private async Task WorkOnQueue()
-        {
-            await Task.Run(() => {
-                ReadOnlyMemory<byte> message;
-                while (KeepMessagesInOrder || messages.Count > 0){
-                    if (messages.TryTake(out message))
-                    {
-                        MessageHandler?.Invoke(message.Span, new MessageArgs(this));
-                        ReadState.ReturnMemory(message);
-                    }
-                }
-
-            });
-        }
-
-        #endregion
+        
 
         #endregion
     }

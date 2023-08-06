@@ -29,7 +29,6 @@ namespace LightBlueFox.Networking
         #region Properties
         
         protected Socket Socket {get{return _socket;}}
-        public abstract bool KeepMessagesInOrder { get; set; }
         
         
         /// <summary>
@@ -59,7 +58,6 @@ namespace LightBlueFox.Networking
             Protocol = (Protocol)s.ProtocolType;
             _socket = s;
             _remoteEndpoint = remoteEndpoint;
-            OnQueueFlushRequested += FlushWriteQueue;
             KeepMessagesInOrder = true;
         }
 
@@ -67,74 +65,11 @@ namespace LightBlueFox.Networking
 
         protected abstract void StartListening();
 
-        private ConcurrentQueue<ReadOnlyMemory<byte>> writeMessages = new ConcurrentQueue<ReadOnlyMemory<byte>>();
 
 
+        #region Writing
 
-        #region Write Queue Flushing
-
-        /// <summary>
-        /// If this many elements are reached in the write queue, a compound packet is sent.
-        /// </summary>
-        private readonly static int WriteQueueMaxElements = 5;
-
-        /// <summary>
-        /// Automatically flush queue every x ms.
-        /// </summary>
-        private readonly static int WriteQueueFlushInterval = 5;
-
-        static NetworkConnection()
-        {
-            QueueFlusher();
-        }
-
-        /// <summary>
-        /// This function requests a new queue flush for all active connections every <see cref="WriteQueueFlushInterval"/> ms.
-        /// </summary>
-        private static async void QueueFlusher()
-        {
-            while (true)
-            {
-                await Task.Delay(WriteQueueFlushInterval);
-                if(OnQueueFlushRequested != null)
-                    await Task.Run(OnQueueFlushRequested.Invoke);
-            }
-        }
-        private delegate void QueueFlushRequestedHandler();
-        private static event QueueFlushRequestedHandler? OnQueueFlushRequested;
-
-        #endregion
-
-        private readonly Mutex _sendMutex = new Mutex();
-        private async void FlushWriteQueue()
-        {
-            await Task.Run(() => {
-                if(!writeMessages.IsEmpty)
-                {
-                    using (MemoryStream ms = new MemoryStream())
-                    {
-                        ReadOnlyMemory<byte> message;
-                        _sendMutex.WaitOne();
-                        while (writeMessages.TryDequeue(out message))
-                        {
-                            // Stay within some safe packet size limits. If we dequeue too much, push it back in (this does not preserve order, how do I fix this :C )
-                            if(Protocol == Protocol.UDP &&  ms.Length + message.Length + 4 > 59900)
-                            {
-                                writeMessages.Enqueue(message);
-                                break;
-                            }
-                            Span<byte> sizeSpan = new byte[4];
-                            BinaryPrimitives.WriteInt32LittleEndian(sizeSpan, message.Length);
-                            ms.Write(sizeSpan);
-                            ms.Write(message.Span);
-                        }
-                        WriteToSocket(ms.ToArray());
-                        _sendMutex.ReleaseMutex();
-                    }
-
-                }
-            });
-        }
+        Mutex sendMutex = new();
         /// <summary>
         /// Ask the connection to write a new packet to the socket.
         /// </summary>
@@ -142,14 +77,17 @@ namespace LightBlueFox.Networking
         {
             if (IsClosed) throw new InvalidOperationException("Socket is closed.");
             if (Protocol == Protocol.UDP && Packet.Length + 4 > 59900) throw new ArgumentException("A udp message may not be over 59900 bytes in length!");
-            writeMessages.Enqueue(Packet);
-            if (writeMessages.Count > WriteQueueMaxElements) FlushWriteQueue();
+            sendMutex.WaitOne();
+            WriteToSocket(Packet);
+            sendMutex.ReleaseMutex();
         }
 
         /// <summary>
         /// This does the protocol-specific write to the socket.
         /// </summary>
-        protected abstract void WriteToSocket(byte[] data);
+        protected abstract void WriteToSocket(ReadOnlyMemory<byte> data);
+
+        #endregion
 
         /// <summary>
         /// Closes the connection and disposes the socket. This will likely trigger the <see cref="Connection.ConnectionDisconnected"/> event with the exception of type <see cref="ObjectDisposedException"/>.
@@ -166,7 +104,6 @@ namespace LightBlueFox.Networking
             }
             catch (InvalidOperationException) { }
             IsClosed = true;
-            OnQueueFlushRequested -= FlushWriteQueue;
         }
 
         public bool IsClosed { get; private set; } = false;
