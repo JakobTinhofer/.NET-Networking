@@ -138,7 +138,7 @@ namespace LightBlueFox.Networking
         /// <summary>
         /// Ask the connection to write a new packet to the socket.
         /// </summary>
-        public override void WritePacket(ReadOnlyMemory<byte> Packet)
+        public override void WriteMessage(ReadOnlyMemory<byte> Packet)
         {
             if (IsClosed) throw new InvalidOperationException("Socket is closed.");
             if (Protocol == Protocol.UDP && Packet.Length + 4 > 59900) throw new ArgumentException("A udp message may not be over 59900 bytes in length!");

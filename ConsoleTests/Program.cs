@@ -16,7 +16,7 @@ TcpConnection myConnection = new TcpConnection("127.0.0.1", 33333);
 myConnection.MessageHandler = MessageHandler;
 
 TcpConnection serverSideConnection = acceptClient.Result; 
-serverSideConnection.WritePacket(Encoding.ASCII.GetBytes("Hello, world!"));
+serverSideConnection.WriteMessage(Encoding.ASCII.GetBytes("Hello, world!"));
 
 Console.ReadKey(true);
 

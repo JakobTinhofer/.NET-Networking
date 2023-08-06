@@ -19,7 +19,7 @@ namespace LightBlueFox.Networking
         /// Sends a packet to the program at the other side.
         /// </summary>
         /// <param name="Packet">Just the packet data, no size prefix required.</param>
-        public abstract void WritePacket(ReadOnlyMemory<byte> Packet);
+        public abstract void WriteMessage(ReadOnlyMemory<byte> Packet);
 
         public abstract void CloseConnection();
 
