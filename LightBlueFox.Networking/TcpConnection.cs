@@ -57,7 +57,7 @@ namespace LightBlueFox.Networking
         /// Describes how a buffer is to be handled after it was completely received.
         /// </summary>
         /// <param name="buffer">The received buffer.</param>
-        private delegate ReadState BufferAction(ReadOnlyMemory<byte> buffer);
+        private delegate ReadState BufferAction(ReadOnlyMemory<byte> buffer, MessageReleasedHandler finishedHandling);
 
         /// <summary>
         /// Describes a buffer that needs to be filled and an action that should be performed once the buffer has been filled.
@@ -67,7 +67,9 @@ namespace LightBlueFox.Networking
             /// <summary>
             /// The actual data read.
             /// </summary>
-            public byte[] Buffer;
+            public Memory<byte> Buffer;
+            public MessageReleasedHandler DoFree;
+
 
             public int Length;
 
@@ -78,8 +80,8 @@ namespace LightBlueFox.Networking
             /// </summary>
             public int WriteIndex = 0;
 
-            private static ArrayPool<byte> messageBufferPool = ArrayPool<byte>.Shared;
-            private static ConcurrentDictionary<ReadOnlyMemory<byte>, byte[]> borrowedArrays = new ConcurrentDictionary<ReadOnlyMemory<byte>, byte[]>();
+            private static MemoryPool<byte> messageBufferPool = MemoryPool<byte>.Shared;
+
 
             /// <summary>
             /// Returns the array corresponding to the given buffer.
@@ -102,7 +104,9 @@ namespace LightBlueFox.Networking
             /// <param name="action"></param>
             public ReadState(int Length, BufferAction action)
             {
-                Buffer = messageBufferPool.Rent(Length);
+                var owner = messageBufferPool.Rent(Length);
+                Buffer = owner.Memory;
+                DoFree = (m, c) => { owner.Dispose(); };
                 this.Length = Length;
                 Data = new Memory<byte>(Buffer, 0, Length);
                 borrowedArrays.TryAdd(Data, Buffer);
@@ -119,7 +123,7 @@ namespace LightBlueFox.Networking
                 Buffer = buffer;
                 OnBufferFilled = action;
                 Length = 4;
-                Data = new Memory<byte>(Buffer, 0, Length);
+                DoFree = (b,c) => { };
             }
 
             /// <summary>
@@ -139,13 +143,14 @@ namespace LightBlueFox.Networking
                 {
                     while (true)
                     {
-                        int bytesRead = Socket.Receive(state.Buffer, state.WriteIndex, state.Length - state.WriteIndex, 0);
+                        
+                        int bytesRead = Socket.Receive(state.Buffer.Slice(0, state.Length).Span);
                         if (bytesRead > 0)
                         {
                             state.WriteIndex += bytesRead;
                             if (state.WriteIndex == state.Length)
                             {
-                                state = state.OnBufferFilled(state.Data);
+                                state = state.OnBufferFilled(state.Buffer.Slice(0, state.Length), state.DoFree);
                             }
                         }
                     }
@@ -165,7 +170,7 @@ namespace LightBlueFox.Networking
         /// Converts the size prefix into an int and rents a buffer from the ArrayPool to which the message will be read.
         /// </summary>
         /// <param name="prefix">The bytes encoding the length prefix.</param>
-        private ReadState SizePrefixAction(ReadOnlyMemory<byte> prefix)
+        private ReadState SizePrefixAction(ReadOnlyMemory<byte> prefix, MessageReleasedHandler finishedHandling)
         {
             int len = BinaryPrimitives.ReadInt32LittleEndian(prefix.Span);
             // TODO: Set max packet length!
@@ -175,16 +180,9 @@ namespace LightBlueFox.Networking
         /// <summary>
         /// Calls the <see cref="MessageHandler"/>.
         /// </summary>
-        private ReadState MessageAction(ReadOnlyMemory<byte> message)
-        {
-            if (KeepMessagesInOrder)
+        private ReadState MessageAction(ReadOnlyMemory<byte> message, MessageReleasedHandler finishedHandling)
             {
-                messages.Add(message);
-            }
-            else
-            {
-                Task.Run(() => { MessageHandler?.Invoke(message.Span, new MessageArgs(this)); ReadState.ReturnMemory(message); });
-            }
+            MessageReceived(message, finishedHandling);
             return new ReadState(sizeBuffer, SizePrefixAction);
         }
 
