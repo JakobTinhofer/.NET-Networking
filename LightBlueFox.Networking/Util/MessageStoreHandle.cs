@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace LightBlueFox.Connect.Util
+﻿namespace LightBlueFox.Connect.Util
 {
     /// <summary>
     /// Describes a handler for when the use of the message buffer is over and it can be released.
@@ -20,6 +13,23 @@ namespace LightBlueFox.Connect.Util
     public struct MessageStoreHandle
     {
         /// <summary>
+        /// Creates a new <see cref="MessageStoreHandle"/>.
+        /// </summary>
+        /// <param name="buffer">Memory handle of the message</param>
+        /// <param name="fh">Callback once no longer in use</param>
+        public MessageStoreHandle(ReadOnlyMemory<byte> buffer, MessageArgs meta, MessageReleasedHandler? fh)
+        {
+            Buffer = buffer;
+            Metadata = meta;
+            FinishedHandling = fh;
+        }
+
+        /// <summary>
+        /// All additional information about the message.
+        /// </summary>
+        public readonly MessageArgs Metadata;
+
+        /// <summary>
         /// The memory handle for the message.
         /// </summary>
         public readonly ReadOnlyMemory<byte> Buffer;
@@ -29,16 +39,6 @@ namespace LightBlueFox.Connect.Util
         /// </summary>
         public readonly MessageReleasedHandler? FinishedHandling;
         
-        /// <summary>
-        /// Creates a new <see cref="MessageStoreHandle"/>.
-        /// </summary>
-        /// <param name="buffer">Memory handle of the message</param>
-        /// <param name="fh">Callback once no longer in use</param>
-        public MessageStoreHandle(ReadOnlyMemory<byte> buffer, MessageReleasedHandler? fh)
-        {
-            Buffer = buffer;
-            FinishedHandling = fh;
-        }
     }
 
 }

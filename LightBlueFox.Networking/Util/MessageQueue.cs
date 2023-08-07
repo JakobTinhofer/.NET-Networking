@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Concurrent;
 
 namespace LightBlueFox.Connect.Util
-{   
+{
     /// <summary>
     /// A class that represents a thread-safe FIFO datastructure, which allows datastreams from multiple threads/sources to be consomed in order by a singe consumer. Also, if there is no consumer set yet, data will be buffered until there is.
     /// </summary>
