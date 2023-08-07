@@ -7,7 +7,7 @@ namespace LightBlueFox.Connect.Net
     /// <summary>
     /// Describes the metadata associated with a message received over the <see cref="SocketProtocol.UDP"/> protocol.
     /// </summary>
-    internal class UDPPacketArgs : MessageArgs
+    internal class UdpMessageArgs : MessageArgs
     {
         /// <summary>
         /// Create a new <see cref="UDPPacketArgs"/> object.
@@ -15,7 +15,7 @@ namespace LightBlueFox.Connect.Net
         /// <param name="sender">The connection that received the datagram.</param>
         /// <param name="fr">Whether the packet was received from a single previously fixed remote endpoint, or just any sender.</param>
         /// <param name="ep">The remote endpoint that sent the datagram.</param>
-        public UDPPacketArgs(UdpConnection sender, bool fr, EndPoint ep) : base(sender)
+        public UdpMessageArgs(UdpConnection sender, bool fr, EndPoint ep) : base(sender)
         {
             WasFixedSender = fr; SenderEndpoint = ep;
         }
