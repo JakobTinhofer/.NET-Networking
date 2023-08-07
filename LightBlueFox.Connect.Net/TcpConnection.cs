@@ -160,7 +160,7 @@ namespace LightBlueFox.Connect.Net
         /// </summary>
         private ReadState MessageAction(ReadOnlyMemory<byte> message, MessageReleasedHandler finishedHandling)
         {
-            MessageReceived(message, finishedHandling);
+            MessageReceived(message, new(this), finishedHandling);
             return new ReadState(sizeBuffer, SizePrefixAction);
         }
 

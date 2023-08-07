@@ -79,9 +79,9 @@ namespace LightBlueFox.Connect
         /// </summary>
         /// <param name="message">The byte representation of the message.</param>
         /// <param name="finished">Callback for when the message finished handling and the memory can be released.</param>
-        protected void MessageReceived(ReadOnlyMemory<byte> message, MessageReleasedHandler? finished)
+        protected void MessageReceived(ReadOnlyMemory<byte> message, MessageArgs meta, MessageReleasedHandler? finished)
         {
-            if (MessageHandler == null || KeepMessagesInOrder) ReadQueue.Add(new(message, finished));
+            if (MessageHandler == null || KeepMessagesInOrder) ReadQueue.Add(new(message, meta, finished));
             else Task.Run(() => { MessageHandler.Invoke(message.Span, new(this)); finished?.Invoke(message, this); });
         }
         #endregion

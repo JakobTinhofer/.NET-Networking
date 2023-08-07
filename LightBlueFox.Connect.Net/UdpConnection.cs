@@ -46,7 +46,7 @@ namespace LightBlueFox.Connect.Net
                         byte[] newBuff = messageBufferPool.Rent(len);
                         Array.Copy(syncBuffer, 0, newBuff, 0, len);
 
-                        MessageReceived(new ReadOnlyMemory<byte>(newBuff, 0, len), (b, c) => { messageBufferPool.Return(newBuff); });
+                        MessageReceived(new ReadOnlyMemory<byte>(newBuff, 0, len), new UdpMessageArgs(this, RemoteEndpoint != null, ep), (b, c) => { messageBufferPool.Return(newBuff); });
                     }
                     catch (Exception ex) when (ex is SocketException || ex is ObjectDisposedException)
                     {
