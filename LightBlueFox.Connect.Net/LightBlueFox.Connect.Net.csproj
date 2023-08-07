@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LightBlueFox.Networking\LightBlueFox.Connect.csproj" />
+    <ProjectReference Include="..\LightBlueFox.Connect\LightBlueFox.Connect.csproj" />
   </ItemGroup>
 
 </Project>
