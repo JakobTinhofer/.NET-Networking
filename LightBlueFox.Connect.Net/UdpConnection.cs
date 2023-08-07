@@ -1,41 +1,43 @@
-﻿using System;
-using System.Buffers;
-using System.Buffers.Binary;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices.Marshalling;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace LightBlueFox.Networking
+namespace LightBlueFox.Connect.Net
 {
+    /// <summary>
+    /// A <see cref="NetworkConnection"/> utilizing the <see cref="SocketProtocol.UDP"/> protocol.
+    /// </summary>
     public class UdpConnection : NetworkConnection
     {
+        /// <summary>
+        /// Creates a new <see cref="UdpConnection"/> from an existing socket that only listens for messages from a fixed <see cref="IPEndPoint"/>.
+        /// </summary>
+        /// <param name="s">The existing UDP socket.</param>
+        /// <param name="remoteEndpoint">The IPEndPoint that this connection should listen for packets from.</param>
         public UdpConnection(Socket s, IPEndPoint remoteEndpoint) : base(s, remoteEndpoint)
         {
             StartListening();
         }
 
-        /// <summary>
-        ///
-        /// </summary>
+        #region Reading
+
+        #region Buffers
         private byte[] syncBuffer = new byte[60000];
         private static ArrayPool<byte> messageBufferPool = ArrayPool<byte>.Shared;
+        #endregion
+
         protected async override void StartListening()
         {
             await Task.Run(() => {
                 bool mode = KeepMessagesInOrder;
                 while (true)
                 {
-                    
+
                     try
                     {
-                        
+
                         EndPoint ep = RemoteEndpoint ?? new IPEndPoint(IPAddress.Any, 0);
-                        
+
                         int len = Socket.ReceiveFrom(syncBuffer, ref ep);
                         if (len == 0) continue;
                         if (RemoteEndpoint != null && RemoteEndpoint != ep) continue;
@@ -44,20 +46,22 @@ namespace LightBlueFox.Networking
                         byte[] newBuff = messageBufferPool.Rent(len);
                         Array.Copy(syncBuffer, 0, newBuff, 0, len);
 
-                        MessageReceived(new ReadOnlyMemory<byte>(newBuff, 0, len), (b, c) => { messageBufferPool.Return(newBuff); });
+                        MessageReceived(new ReadOnlyMemory<byte>(newBuff, 0, len), new UdpMessageArgs(this, RemoteEndpoint != null, ep), (b, c) => { messageBufferPool.Return(newBuff); });
                     }
                     catch (Exception ex) when (ex is SocketException || ex is ObjectDisposedException)
                     {
-                        CallConnectionClosed(ex);
+                        CallConnectionDisconnected(ex);
                         return;
                     }
-                    
+
                 }
             });
         }
+        #endregion
 
+        #region Writing
         /// <summary>
-        /// Writes a single datagram
+        /// Writes a single datagram to the underlying socket.
         /// </summary>
         protected override void WriteToSocket(ReadOnlyMemory<byte> data)
         {
@@ -68,13 +72,13 @@ namespace LightBlueFox.Networking
             }
             catch (Exception ex) when (ex is SocketException || ex is ObjectDisposedException)
             {
-                CallConnectionClosed(ex);
+                CallConnectionDisconnected(ex);
             }
         }
 
         /// <summary>
-        /// Writes to a special recipient ip.
-        /// </summary>
+        /// Writes a datagram to a special recipient ip.
+        /// </summary> 
         public void WriteTo(byte[] data, EndPoint endPoint)
         {
             try
@@ -83,11 +87,12 @@ namespace LightBlueFox.Networking
             }
             catch (Exception ex) when (ex is SocketException || ex is ObjectDisposedException)
             {
-                CallConnectionClosed(ex);
+                CallConnectionDisconnected(ex);
             }
         }
 
-
         //TODO: WriteTo; ReadFrom (i.e. multicast server)
+        #endregion
+
     }
 }

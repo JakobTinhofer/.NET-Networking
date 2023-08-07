@@ -1,51 +1,13 @@
-﻿using System;
-using System.Buffers.Binary;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace LightBlueFox.Networking
+namespace LightBlueFox.Connect.Net
 {
     /// <summary>
     /// Describes a connection between to machines over the Internet Protocol (IP).
     /// </summary>
     public abstract class NetworkConnection : Connection
     {
-        #region Private Fields
-
-        private Socket _socket;
-        private EndPoint _remoteEndpoint;
-        private bool _keepMessagesInOrder;
-
-
-
-        #endregion
-
-        #region Properties
-        
-        protected Socket Socket {get{return _socket;}}
-        
-        
-        /// <summary>
-        /// The endpoint (as seen from the perspective of this device) of the remote client.
-        /// Keep in mind, this might not be the actual endpoint of the device (If the connection is using a relay server,
-        /// this will be the EndPoint of the mirror server, not the client on the other side)
-        /// </summary>
-        public IPEndPoint RemoteEndpoint { get { return (IPEndPoint)_remoteEndpoint; } }
-        
-        
-        public Protocol Protocol { get; protected set; }
-
-        
-        #endregion
-
-        #region Constructors
-
         /// <summary>
         /// Create a new Connection from an existing socket.
         /// </summary>
@@ -55,31 +17,60 @@ namespace LightBlueFox.Networking
         public NetworkConnection(Socket s, IPEndPoint remoteEndpoint)
         {
             if ((s.ProtocolType != ProtocolType.Tcp && s.ProtocolType != ProtocolType.Udp)) throw new ArgumentException("This is not the right protocol. Make sure that your socket uses either udp or tcp!");
-            Protocol = (Protocol)s.ProtocolType;
+            Protocol = (SocketProtocol)s.ProtocolType;
             _socket = s;
             _remoteEndpoint = remoteEndpoint;
             KeepMessagesInOrder = true;
         }
 
+        #region Fields & Properties
+
+        #region Socket
+        /// <summary>
+        /// The os socket this connection is based on.
+        /// </summary>
+        protected Socket Socket {get{return _socket;}}
+        private Socket _socket;
         #endregion
 
+        #region RemoteEndpoint
+        /// <summary>
+        /// The endpoint (as seen from the perspective of this device) of the remote client.
+        /// Keep in mind, this might not be the actual endpoint of the device (If the connection is using a relay server,
+        /// this will be the EndPoint of the mirror server, not the client on the other side)
+        /// </summary>
+        public IPEndPoint RemoteEndpoint { get { return (IPEndPoint)_remoteEndpoint; } }
+        private EndPoint _remoteEndpoint;
+        #endregion
+
+        /// <summary>
+        /// The underlying protocol of this connection.
+        /// </summary>
+        public readonly SocketProtocol Protocol;
+
+        #endregion
+
+        #region Abstracts
+        /// <summary>
+        /// Start listening on the current <see cref="NetworkConnection.Socket"/>
+        /// </summary>
         protected abstract void StartListening();
-
-
+        #endregion
 
         #region Writing
 
-        Mutex sendMutex = new();
+        private Mutex writeMutex = new(); // Ensures that no two threads try writing to the same socket at the same time.
+
         /// <summary>
         /// Ask the connection to write a new packet to the socket.
         /// </summary>
         public override void WriteMessage(ReadOnlyMemory<byte> Packet)
         {
             if (IsClosed) throw new InvalidOperationException("Socket is closed.");
-            if (Protocol == Protocol.UDP && Packet.Length + 4 > 59900) throw new ArgumentException("A udp message may not be over 59900 bytes in length!");
-            sendMutex.WaitOne();
+            if (Protocol == SocketProtocol.UDP && Packet.Length + 4 > 59900) throw new ArgumentException("A udp message may not be over 59900 bytes in length!");
+            writeMutex.WaitOne();
             WriteToSocket(Packet);
-            sendMutex.ReleaseMutex();
+            writeMutex.ReleaseMutex();
         }
 
         /// <summary>
@@ -89,6 +80,7 @@ namespace LightBlueFox.Networking
 
         #endregion
 
+        #region Overrides
         /// <summary>
         /// Closes the connection and disposes the socket. This will likely trigger the <see cref="Connection.ConnectionDisconnected"/> event with the exception of type <see cref="ObjectDisposedException"/>.
         /// </summary>
@@ -105,16 +97,6 @@ namespace LightBlueFox.Networking
             catch (InvalidOperationException) { }
             IsClosed = true;
         }
-
-        public bool IsClosed { get; private set; } = false;
-
-    }
-
-
-
-    public enum Protocol
-    {
-        TCP = 6,
-        UDP = 17,
+        #endregion
     }
 }

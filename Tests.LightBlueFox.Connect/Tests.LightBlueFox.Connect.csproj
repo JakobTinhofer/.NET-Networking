@@ -15,7 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LightBlueFox.Networking\LightBlueFox.Networking.csproj" />
+    <ProjectReference Include="..\LightBlueFox.Connect.Net\LightBlueFox.Connect.Net.csproj" />
+    <ProjectReference Include="..\LightBlueFox.Connect\LightBlueFox.Connect.csproj" />
   </ItemGroup>
 
 </Project>
