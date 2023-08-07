@@ -1,4 +1,4 @@
-LightBlueFox.Connect is a base .NET Library which provides a unified framework for inter-app communication. Specific connection implementations are then provided in sub-libraries, such as LightBlueFox.Connect.Net.
+LightBlueFox.Connect is a base .NET Library which provides a unified framework for inter-app communication. Specific connection implementations are then provided in sub-libraries, such as LightBlueFox.Connect.Net (also contained in this repo).
 
 ## Features
 - Provide a unified framework for apps where the exact nature of the connection is not of concern, greatly reducing reimplementation of e.g. basic networking code
