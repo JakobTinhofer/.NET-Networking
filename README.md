@@ -1,4 +1,4 @@
-A base .NET Library which provides a unified framework for inter-app communication. Other libraries, such as LightBlueFox.Connect.Net, then offer various implementation of the abstract description of a connection provided by the base library.
+LightBlueFox.Connect is a base .NET Library which provides a unified framework for inter-app communication. Specific connection implementations are then provided in sub-libraries, such as LightBlueFox.Connect.Net.
 
 ## Features
 - Provide a unified framework for apps where the exact nature of the connection is not of concern, greatly reducing reimplementation of e.g. basic networking code
@@ -16,4 +16,4 @@ A base .NET Library which provides a unified framework for inter-app communicati
 - #### Connection:
 	The abstract base class that describes the minimum capabilities all connection implementations should offer, such as Reading and Writing. Also defines events and implements a few basic features such as read message queueing. 
 - #### Util classes:
-	A small collection of other Types that might be used when in any extending libraries, such as `MessageQueue`, `MessageStoreHandle` and `MessageArgs`.
+	A small collection of other Types that might be used in any extending libraries, such as `MessageQueue`, `MessageStoreHandle` and `MessageArgs`.
