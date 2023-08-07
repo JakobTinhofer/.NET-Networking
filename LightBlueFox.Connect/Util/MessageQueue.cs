@@ -28,7 +28,7 @@ namespace LightBlueFox.Connect.Util
         private CancellationTokenSource stopTakingMessages = new();
 
         /// <summary>
-        /// While this is true, messages will continuosly be dequeued. If set to false, dequeuing will pause until set to true again.
+        /// While this is true, messages will continuously be dequeued. If set to false, dequeuing will pause until set to true again.
         /// </summary>
         public bool WorkOnQueue
         {
