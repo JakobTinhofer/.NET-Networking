@@ -1,18 +1,12 @@
-﻿using System;
+﻿using LightBlueFox.Connect.Util;
 using System.Buffers;
 using System.Buffers.Binary;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace LightBlueFox.Networking
+namespace LightBlueFox.Connect.Net
 {
-    
+
 
     public class TcpConnection : NetworkConnection
     {

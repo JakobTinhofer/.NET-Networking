@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LightBlueFox.Networking
+namespace LightBlueFox.Connect.Util
 {
 
     public delegate void MessageQueueActionHandler(MessageStoreHandle storedMessage);
@@ -49,13 +49,13 @@ namespace LightBlueFox.Networking
             set
             {
                 if (value && QueueWorkerTask == null) QueueWorkerTask = Task.Run(QueueWorker);
-                else if(!value && QueueWorkerTask != null) stopTakingMessages.Cancel();
+                else if (!value && QueueWorkerTask != null) stopTakingMessages.Cancel();
             }
         }
 
         public MessageQueue(MessageQueueActionHandler queueAction)
         {
-            this.QueueAction = queueAction;
+            QueueAction = queueAction;
         }
 
         public void Add(MessageStoreHandle message)

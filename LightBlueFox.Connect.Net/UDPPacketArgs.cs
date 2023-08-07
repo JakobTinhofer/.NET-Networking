@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using LightBlueFox.Connect.Util;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace LightBlueFox.Networking
+
+namespace LightBlueFox.Connect.Net
 {
     internal class UDPPacketArgs : MessageArgs
     {

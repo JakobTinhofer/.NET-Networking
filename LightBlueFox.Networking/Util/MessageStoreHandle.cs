@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LightBlueFox.Networking
+namespace LightBlueFox.Connect.Util
 {
     public delegate void MessageReleasedHandler(ReadOnlyMemory<byte> message, Connection c);
     public struct MessageStoreHandle
@@ -18,5 +18,5 @@ namespace LightBlueFox.Networking
             FinishedHandling = fh;
         }
     }
-    
+
 }

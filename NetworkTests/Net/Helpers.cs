@@ -1,13 +1,11 @@
-﻿using LightBlueFox.Networking;
+﻿using LightBlueFox.Connect.Net;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
 
-namespace NetworkTests
+namespace Tests.LightBlueFox.Connect.Net
 {
     public static class Helpers
     {
@@ -39,7 +37,7 @@ namespace NetworkTests
 
         public static List<byte>[] GenerateConsistentData(int nr, int maxSize, out int bytes, int seed)
         {
-            return GeneratePatternedData((int)nr, maxSize, out bytes, (r) => { return 111; }, seed);
+            return GeneratePatternedData(nr, maxSize, out bytes, (r) => { return 111; }, seed);
         }
 
         public static List<byte>[] GenerateRandomData(int nr, int maxSize, int seed = -1)
@@ -67,7 +65,7 @@ namespace NetworkTests
             UdpClient c2 = new UdpClient("127.0.0.1", port);
             IPEndPoint c2_rem_ep = (IPEndPoint)(c2.Client.RemoteEndPoint ?? throw new InvalidOperationException("Udp socket local ep is null!"));
             IPEndPoint c_rem_ep = new IPEndPoint(IPAddress.Any, port);
-            Task<bool> r = Task<bool>.Run(() =>
+            Task<bool> r = Task.Run(() =>
             {
                 return c.Receive(ref c_rem_ep)[0] == 222;
 

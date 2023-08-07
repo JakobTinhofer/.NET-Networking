@@ -1,20 +1,16 @@
+using LightBlueFox.Connect.Net;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using LightBlueFox.Networking;
 using System;
-using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Text;
-using System.Net.Sockets;
 using System.Linq;
-using System.Net;
-using System.Threading;
+using System.Threading.Tasks;
 
-namespace NetworkTests
+namespace Tests.LightBlueFox.Connect.Net
 {
     [TestClass]
     public class ConnectionTest
     {
-        
+
 
         #region Tests
 
@@ -24,17 +20,18 @@ namespace NetworkTests
         {
             (NetworkConnection sender, NetworkConnection receiver) = Helpers.GetTcpConnections(12312);
             TaskCompletionSource<byte[]> tcs = new TaskCompletionSource<byte[]>();
-            
+
 
             var d = Helpers.GenerateRandomData(1, 40000);
 
-            receiver.MessageHandler = (e, args) => { 
+            receiver.MessageHandler = (e, args) =>
+            {
                 tcs.SetResult(e.ToArray());
             };
             sender.WriteMessage(d[0].ToArray());
             Assert.IsTrue(Helpers.Compare(tcs.Task.GetAwaiter().GetResult(), d[0].ToArray()));
             sender.CloseConnection();
-            
+
         }
         [TestMethod]
         public void TestTcpConnection_MultiPacket()
@@ -48,7 +45,7 @@ namespace NetworkTests
             TaskCompletionSource<List<byte>[]> tcs = new TaskCompletionSource<List<byte>[]>();
 
             List<List<byte>> receivedPackets = new List<List<byte>>();
-            
+
             foreach (var item in d)
             {
                 sender.WriteMessage(item.ToArray());
@@ -107,7 +104,7 @@ namespace NetworkTests
         #endregion
         #endregion
 
-        
-        
+
+
     }
 }

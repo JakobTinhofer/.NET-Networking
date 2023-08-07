@@ -1,7 +1,6 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
+﻿using LightBlueFox.Connect.Util;
 
-namespace LightBlueFox.Networking
+namespace LightBlueFox.Connect
 {
     // This describes any connection between two programs, be it over the internet or whatever other communication media.
     public abstract class Connection
