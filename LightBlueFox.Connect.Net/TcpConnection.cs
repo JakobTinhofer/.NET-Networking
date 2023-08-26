@@ -176,8 +176,20 @@ namespace LightBlueFox.Connect.Net
         {
             byte[] sizePrefix = new byte[4];
             BinaryPrimitives.WriteInt32LittleEndian(sizePrefix, data.Length);
-            Socket.Send(sizePrefix);
-            Socket.Send(data.Span);
+            try
+            {
+                Socket.Send(sizePrefix);
+                Socket.Send(data.Span);
+            }
+            catch (ObjectDisposedException ex)
+            {
+                CallConnectionDisconnected(ex);
+            }
+            catch (SocketException ex)
+            {
+                CallConnectionDisconnected(ex);
+            }
+            
         }
         #endregion
 

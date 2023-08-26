@@ -95,6 +95,7 @@ namespace LightBlueFox.Connect.Net
             {
             }
             catch (InvalidOperationException) { }
+            CallConnectionDisconnected(null);
             IsClosed = true;
         }
         #endregion

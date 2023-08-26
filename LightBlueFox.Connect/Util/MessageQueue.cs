@@ -1,11 +1,12 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace LightBlueFox.Connect.Util
 {
     /// <summary>
     /// A class that represents a thread-safe FIFO datastructure, which allows datastreams from multiple threads/sources to be consomed in order by a singe consumer. Also, if there is no consumer set yet, data will be buffered until there is.
     /// </summary>
-    internal class MessageQueue
+    public class MessageQueue
     {
         /// <summary>
         /// Creates and sets up a new message queue with a <see cref="MessageQueueActionHandler"/> for processing the dequeued messages.
@@ -14,6 +15,7 @@ namespace LightBlueFox.Connect.Util
         public MessageQueue(MessageQueueActionHandler queueAction)
         {
             QueueAction = queueAction;
+            token = stopTakingMessages.Token;
         }
 
         #region Fields
@@ -26,7 +28,7 @@ namespace LightBlueFox.Connect.Util
         private BlockingCollection<MessageStoreHandle> storedMessages = new();
         private Task? QueueWorkerTask = null;
         private CancellationTokenSource stopTakingMessages = new();
-
+        private CancellationToken token;
         /// <summary>
         /// While this is true, messages will continuously be dequeued. If set to false, dequeuing will pause until set to true again.
         /// </summary>
@@ -37,35 +39,62 @@ namespace LightBlueFox.Connect.Util
                 return QueueWorkerTask != null;
             }
             set
-            {
-                if (value && QueueWorkerTask == null) QueueWorkerTask = Task.Run(QueueWorker);
-                else if (!value && QueueWorkerTask != null) stopTakingMessages.Cancel();
+            {   
+                if(token.IsCancellationRequested)
+                {
+                    workerCanceled(token);
+                }
+                
+                alteringQueueWorker.WaitOne();
+                if (value && QueueWorkerTask == null)
+                {
+                    QueueWorkerTask = Task.Run(() => { QueueWorker(token); });
+                }
+                else if (!value && QueueWorkerTask != null)
+                {
+                    stopTakingMessages.Cancel(true);
+                }
+                else
+                {
+                    alteringQueueWorker.Set();
+                }
             }
         }
 
+
+       
+
+        private AutoResetEvent alteringQueueWorker = new(true);
         #endregion
 
         #region I/O
-        private void QueueWorker()
+        private void QueueWorker(CancellationToken myToken)
         {
-            var token = stopTakingMessages.Token;
-            while (!token.IsCancellationRequested)
+            alteringQueueWorker.Set();
+            while (!myToken.IsCancellationRequested)
             {
-                MessageStoreHandle msg;
                 try
                 {
+                    MessageStoreHandle msg;
                     msg = storedMessages.Take(token);
+                    QueueAction?.Invoke(msg);
                 }
                 catch (OperationCanceledException)
                 {
                     break;
                 }
-
-                QueueAction?.Invoke(msg);
-
             }
-            QueueWorkerTask = null;
+            workerCanceled(myToken);
+        }
 
+        private void workerCanceled(CancellationToken t)
+        {
+            if (t != token) return;
+            var id = QueueWorkerTask?.Id;
+            QueueWorkerTask = null;
+            stopTakingMessages = new CancellationTokenSource();
+            token = stopTakingMessages.Token;
+            alteringQueueWorker.Set();
         }
 
         public void Add(MessageStoreHandle message)
