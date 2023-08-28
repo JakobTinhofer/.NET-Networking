@@ -99,9 +99,8 @@ namespace LightBlueFox.Connect.Structure
         {
             NegotiationMessages mType = ((NegotiationMessages)message[0]);
             bool unexpected = mType != expectedMessage;
-            Debug.WriteLine("Received neg message of type {0}!", mType);
             var v = validatorQueue.Count == 0 ? null : validatorQueue.Dequeue();
-            
+
             switch (mType)
             {
                 case NegotiationMessages.VerificationAborted:
@@ -113,7 +112,7 @@ namespace LightBlueFox.Connect.Structure
                 case NegotiationMessages.Challenge:
                     if (v == null) validationFailed(new(ValidationFailure.TooManyValidators));
                     else if (unexpected) validationFailed(new(ValidationFailure.InvalidOrder));
-                    else if (!v.ValidateChallenge(message.Slice(1))) validationFailed(new(ValidationFailure.InvalidChallenge));
+                    else if (!v.ValidateChallenge(message.Slice(1))) validationFailed(new(ValidationFailure.InvalidChallenge)); 
                     else { writeNegMessage(NegotiationMessages.Answer, v.GetAnswerBytes()); expectedMessage = validatorQueue.Count == 0 ? NegotiationMessages.Success : NegotiationMessages.Challenge; }
                     return;
                 case NegotiationMessages.Answer:
