@@ -2,6 +2,8 @@
 using LightBlueFox.Connect.Net;
 using System.Net;
 using System.Net.Sockets;
+using System.Diagnostics.Contracts;
+using System;
 
 namespace LightBlueFox.Connect.Net.ConnectionSources
 {
@@ -52,15 +54,28 @@ namespace LightBlueFox.Connect.Net.ConnectionSources
 
         private void AcceptClient(IAsyncResult ar)
         {
-            var client = sock.EndAccept(ar);
-            Task.Run(() => { OnNewConnection?.Invoke(CreateConnection(client), this); });
-            sock.BeginAccept(new AsyncCallback(AcceptClient), null);
+            try
+            {
+                var client = sock.EndAccept(ar);
+                Task.Run(() => { OnNewConnection?.Invoke(CreateConnection(client), this); });
+                sock.BeginAccept(new AsyncCallback(AcceptClient), null);
+            }
+            catch (Exception ex) {
+                if (!(ex is SocketException || ex is ObjectDisposedException)) throw;
+            } 
         }
 
         protected abstract NetworkConnection CreateConnection(Socket s);
 
+        public override void Close()
+        {
+            sock.Close();
+            sock.Dispose();
+        }
+
         public void Dispose()
         {
+            sock.Close();
             ((IDisposable)sock).Dispose();
         }
     }

@@ -4,5 +4,6 @@
     public abstract class ConnectionSource
     {
         public NewConnectionHandler? OnNewConnection;
+        public abstract void Close();
     }
 }

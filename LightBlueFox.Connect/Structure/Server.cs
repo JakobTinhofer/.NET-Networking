@@ -71,6 +71,12 @@ namespace LightBlueFox.Connect.Structure
         }
 
         private void newConnection(Connection conn, ConnectionSource source) {
+
+            if (Closed)
+            {
+                conn.CloseConnection();
+                throw new ObjectDisposedException("Server already closed!");
+            }
             Debug.WriteLine("New connection, starting negotiation!");
             ongoingNegotiations.Add(new(conn, ConnectionNegotiationPosition.Authorizer, Validators, negotiationFailed, negotiationSucceeded));
         }
@@ -108,11 +114,16 @@ namespace LightBlueFox.Connect.Structure
         public Server(ConnectionValidator validator, params ConnectionSource[] sources) : this(new ConnectionValidator[1] {validator}, sources) { }
 
 
+        public bool Closed { get; private set; } = false;
 
 
         public void Close()
         {
-            
+            if (Closed) return;
+            foreach (var s in connectionSources)
+            {
+                s.Close();
+            }
             foreach (var n in new List<ConnectionNegotiation>(ongoingNegotiations))
             {
                 n.Dispose();
@@ -123,6 +134,8 @@ namespace LightBlueFox.Connect.Structure
             }
             ongoingNegotiations.Clear();
             validatedConnections.Clear();
+            connectionSources.Clear();
+            Closed = true;
         }
 
         public void Dispose()
