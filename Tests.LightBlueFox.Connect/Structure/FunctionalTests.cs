@@ -22,37 +22,33 @@ namespace Tests.LightBlueFox.Connect.Structure
         [TestMethod]
         public void TestServerConnectSingleClient()
         {
-            using(Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
-            {
-                s.Bind(new IPEndPoint(IPAddress.Any, 12321));
-                DateTime t = DateTime.UtcNow;
-                Server myServer;
-                Connection myClientConnection;
+            DateTime t = DateTime.UtcNow;
+            Server myServer;
+            Connection myClientConnection;
 
-                TaskCompletionSource<bool> serverMessageMatches = new TaskCompletionSource<bool>();
-                TaskCompletionSource<bool> clientMessageMatches = new TaskCompletionSource<bool>();
+            TaskCompletionSource<bool> serverMessageMatches = new TaskCompletionSource<bool>();
+            TaskCompletionSource<bool> clientMessageMatches = new TaskCompletionSource<bool>();
 
-                Task badTask = Task.Run(() => Task.Delay(10000));
+            Task badTask = Task.Run(() => Task.Delay(10000));
 
-                Task goodTask = Task.Run<bool>(() => { 
-                    myServer = new(new NameValidator("test123"), new TcpSource(s));
-                    myServer.MessageHandler = (b, a) => { 
-                        serverMessageMatches.SetResult(b.Length == 1 && b[0] == 123);
-                        a.Sender.WriteMessage(new byte[1] { 222 });
-                    };
-                    Debug.WriteLine("Time passed: " + (DateTime.UtcNow - t).ToString(@"ss\.ff"));
-                    myClientConnection = ConnectionNegotiation.ValidateConnection(new TcpConnection("localhost", 12321), ConnectionNegotiationPosition.Challenger, new NameValidator("test123"));
-                    myClientConnection.MessageHandler = (b, a) => { 
-                        clientMessageMatches.SetResult(b.Length == 1 && b[0] == 222);
-                    };
+            Task goodTask = Task.Run<bool>(() => {
+                myServer = new(new NameValidator("test123"), new TcpSource(12321));
+                myServer.MessageHandler = (b, a) => {
+                    serverMessageMatches.SetResult(b.Length == 1 && b[0] == 123);
+                    a.Sender.WriteMessage(new byte[1] { 222 });
+                };
+                Debug.WriteLine("Time passed: " + (DateTime.UtcNow - t).ToString(@"ss\.ff"));
+                myClientConnection = ConnectionNegotiation.ValidateConnection(new TcpConnection("localhost", 12321), ConnectionNegotiationPosition.Challenger, new NameValidator("test123"));
+                myClientConnection.MessageHandler = (b, a) => {
+                    clientMessageMatches.SetResult(b.Length == 1 && b[0] == 222);
+                };
 
-                    myClientConnection.WriteMessage(new byte[1] { 123 });
-                    return serverMessageMatches.Task.GetAwaiter().GetResult() && clientMessageMatches.Task.GetAwaiter().GetResult();
-                });
-                
-                Assert.IsTrue(Task.WaitAny(badTask, goodTask) == 1, "The negotiation was aborted since the task timed out.");
-                Assert.IsTrue(((Task<bool>)goodTask).GetAwaiter().GetResult(), "The message contents were not as expected.");
-            }
+                myClientConnection.WriteMessage(new byte[1] { 123 });
+                return serverMessageMatches.Task.GetAwaiter().GetResult() && clientMessageMatches.Task.GetAwaiter().GetResult();
+            });
+
+            Assert.IsTrue(Task.WaitAny(badTask, goodTask) == 1, "The negotiation was aborted since the task timed out.");
+            Assert.IsTrue(((Task<bool>)goodTask).GetAwaiter().GetResult(), "The message contents were not as expected.");
         }
 
         [TestMethod]
@@ -70,8 +66,9 @@ namespace Tests.LightBlueFox.Connect.Structure
             Assert.IsFalse(didValidate.Task.GetAwaiter().GetResult());
         }
 
-        [TestMethod]
-        public void TestServerConnectMultipleClient()
+        [DataTestMethod]
+        [DataRow(4, 34, 8)]
+        public void TestSpecialServerClients(int clientsExpected, int clientPcktsExpected, int serverPcktsExpected)
         {
             TaskCompletionSource finishedAllClientMessages = new TaskCompletionSource(false);
             Random r = new();
@@ -79,21 +76,19 @@ namespace Tests.LightBlueFox.Connect.Structure
             int clientPcktsSent = 0;
             int clientPcktsReceived = 0;
             int serverPcktsReceived = 0;
-            int clientPcktsExpected = r.Next(5, 50);
-            int serverPcktsExpected = r.Next(5, 50);
 
-            int clientsExpecetd = r.Next(2, 5);
+
             int clientsConnected = 0;
             int clientsDisconnected = 0;
 
             byte[] messageBytes = { 11, 22, 33, 44, 55 };
             byte[] reverseMessageBytes = messageBytes.Reverse().ToArray();
 
-            Debug.WriteLine("Conns: {0}, ClientPackets: {1}, ServerPackets: {2}", clientsExpecetd, clientPcktsExpected, serverPcktsExpected);
+            Debug.WriteLine("Conns: {0}, ClientPackets: {1}, ServerPackets: {2}", clientsExpected, clientPcktsExpected, serverPcktsExpected);
 
             Server s = new(new NameValidator("1234321"), new TcpSource(12321, IPAddress.Loopback));
 
-            s.OnConnectionDisconnected += (c, s) => { 
+            s.OnConnectionDisconnected += (c, s) => {
                 clientsDisconnected++;
                 Debug.WriteLine("[CLIENT DISCONNECT] client disconnected. CPR/SPR: {0}/{2}, CPR/CPS: {1}{3}, CD/CC: {5}/{4}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);
             };
@@ -102,7 +97,7 @@ namespace Tests.LightBlueFox.Connect.Structure
             {
                 if (m.SequenceEqual(reverseMessageBytes)) serverPcktsReceived++;
                 else throw new Exception("Received invalid data from client!");
-                if (serverPcktsReceived == clientPcktsExpected * clientsExpecetd && clientPcktsReceived == serverPcktsExpected * clientsExpecetd && !finishedAllClientMessages.Task.IsCompleted) finishedAllClientMessages.SetResult();
+                if (serverPcktsReceived == clientPcktsExpected * clientsExpected && clientPcktsReceived == serverPcktsExpected * clientsExpected && !finishedAllClientMessages.Task.IsCompleted) finishedAllClientMessages.SetResult();
                 Debug.WriteLine("[SERVER HANDLER] received packet. CPR: {0}, CPS: {1}, SPR: {2}, SPS: {3}, CC: {4}, CD: {5}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);
             };
 
@@ -114,11 +109,11 @@ namespace Tests.LightBlueFox.Connect.Structure
                     Thread.Sleep(r.Next(0, 100));
                     c.WriteMessage(messageBytes);
                     serverPcktsSent++;
-                    
+
                 }
             };
             List<Connection> conns = new();
-            for (int i = 0; i < clientsExpecetd; i++)
+            for (int i = 0; i < clientsExpected; i++)
             {
                 Task.Run(() => {
                     clientsConnected++;
@@ -128,7 +123,7 @@ namespace Tests.LightBlueFox.Connect.Structure
                     {
                         if (m.SequenceEqual(messageBytes)) clientPcktsReceived++;
                         else throw new Exception("Received invalid data from server!");
-                        if (serverPcktsReceived == clientPcktsSent * clientsExpecetd && clientPcktsReceived == serverPcktsSent * clientsExpecetd && !finishedAllClientMessages.Task.IsCompleted) finishedAllClientMessages.SetResult();
+                        if (serverPcktsReceived == clientPcktsExpected * clientsExpected && clientPcktsReceived == serverPcktsExpected * clientsExpected && !finishedAllClientMessages.Task.IsCompleted) finishedAllClientMessages.SetResult();
                         Debug.WriteLine("[CLIENT HANDLER] received packet. CPR: {0}, CPS: {1}, SPR: {2}, SPS: {3}, CC: {4}, CD: {5}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);
                     };
                     for (int j = 0; j < clientPcktsExpected; j++)
@@ -137,11 +132,11 @@ namespace Tests.LightBlueFox.Connect.Structure
                         c.WriteMessage(reverseMessageBytes);
                         clientPcktsSent++;
                     }
-                     
+
                 });
             }
 
-            Assert.IsTrue(finishedAllClientMessages.Task.Wait(99999999), "Timed out");
+            Assert.IsTrue(finishedAllClientMessages.Task.Wait(20000), "Timed out");
 
             foreach (var c in conns)
             {
@@ -149,8 +144,15 @@ namespace Tests.LightBlueFox.Connect.Structure
             }
 
             s.Dispose();
-            
         }
+
+        [TestMethod]
+        public void TestServerConnectMultipleClientRandom()
+        {
+            Random r = new();
+            TestSpecialServerClients(r.Next(2, 5), r.Next(5, 50), r.Next(5, 50));
+        }
+
 
     }
 }
