@@ -22,6 +22,7 @@ namespace LightBlueFox.Connect.Net
         {
             if (s.ProtocolType != ProtocolType.Tcp || s.SocketType != SocketType.Stream) throw new ArgumentException("The given socket does not seem to be a tcp socket!");
             if (s.Connected == false) throw new ArgumentException("The given socket is not connected!");
+            SaveBandwidth = DefaultSaveBandwidth;
             StartListening();
         }
 
@@ -193,5 +194,20 @@ namespace LightBlueFox.Connect.Net
         }
         #endregion
 
+        #region Public Properties
+
+        public static bool DefaultSaveBandwidth = false;
+
+        public bool SaveBandwidth { get
+            {
+                return Socket.NoDelay;
+            } 
+            set
+            {
+                Socket.NoDelay = value;
+            }
+        }
+
+        #endregion
     }
 }
