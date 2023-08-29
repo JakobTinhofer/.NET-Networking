@@ -6,7 +6,7 @@ namespace LightBlueFox.Connect
     /// <summary>
     /// This describes any connection between two points, be it over the internet or whatever other communication media.
     /// </summary>
-    public abstract class Connection
+    public abstract class Connection: IDisposable
     {
         /// <summary>
         /// Initializes the read queue for the new connection.
@@ -30,7 +30,7 @@ namespace LightBlueFox.Connect
             }
             set
             {
-                ReadQueue.WorkOnQueue = value != null;
+                ReadQueue.WorkOnQueue = !(PauseReadQueue || value == null);
                 _handler = value;
             }
         }
@@ -71,6 +71,7 @@ namespace LightBlueFox.Connect
         /// <param name="ex"></param>
         protected void CallConnectionDisconnected(Exception? ex)
         {
+            IsClosed = true;
             Task.Run(() => ConnectionDisconnected?.Invoke(this, ex));
         }
 
@@ -104,8 +105,47 @@ namespace LightBlueFox.Connect
             else Task.Run(callHandler);
         } // Read Queue action.
         private MessageQueue ReadQueue;
+
+        private bool _pauseReadQueue = false;
+        private bool disposedValue;
+
+        public bool PauseReadQueue
+        {
+            get
+            {
+                return _pauseReadQueue;
+            }
+            set
+            {
+                if (!value && _handler == null) throw new InvalidOperationException("Cannot unpause the read queue as long as there is no message handler set!");
+                _pauseReadQueue = value;
+                ReadQueue.WorkOnQueue = !value;
+            }
+        }
+
         #endregion
 
+        #region Closing & Disposal
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    CloseConnection();
+                }
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        #endregion
     }
 
     /// <summary>

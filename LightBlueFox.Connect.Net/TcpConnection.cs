@@ -18,10 +18,11 @@ namespace LightBlueFox.Connect.Net
         /// <param name="s"></param>
         /// <exception cref="ArgumentException">Thrown if <see cref="Socket.SocketType"/> is not <see cref="SocketType.Stream"/> or <see cref="Socket.ProtocolType"/> is not <see cref="ProtocolType.Tcp"/>.</exception>
         /// <exception cref="ArgumentNullException">Thrown if <see cref="Socket.RemoteEndPoint"/> is null.</exception>
-        public TcpConnection(Socket s) : base(s, (IPEndPoint)(s.RemoteEndPoint ?? throw new ArgumentNullException("s.RemoteEndpoint")))
+        public TcpConnection(Socket s) : base(s, (IPEndPoint)(s.RemoteEndPoint ?? throw new ArgumentNullException(nameof(s))))
         {
             if (s.ProtocolType != ProtocolType.Tcp || s.SocketType != SocketType.Stream) throw new ArgumentException("The given socket does not seem to be a tcp socket!");
             if (s.Connected == false) throw new ArgumentException("The given socket is not connected!");
+            SaveBandwidth = DefaultSaveBandwidth;
             StartListening();
         }
 
@@ -44,18 +45,18 @@ namespace LightBlueFox.Connect.Net
         /// Describes what to do once the <see cref="ReadState"/>'s buffer has been filled.
         /// </summary>
         /// <param name="buffer">The received buffer.</param>
-        private delegate ReadState ReadStateAction(ReadOnlyMemory<byte> buffer, MessageReleasedHandler finishedHandling);
+        private delegate ReadState ReadStateAction(ReadOnlyMemory<byte> buffer, MessageReleasedHandler? finishedHandling);
 
         /// <summary>
         /// The current state of the reading thread. Describes a buffer that needs to be filled and an action that should be performed once the buffer has been filled.
         /// </summary>
         private class ReadState
         {
-            private static MemoryPool<byte> messageBufferPool = MemoryPool<byte>.Shared;
+            private readonly static MemoryPool<byte> messageBufferPool = MemoryPool<byte>.Shared;
 
             #region Constructors
             /// <summary>
-            /// Creates a new readstate.
+            /// Creates a new <see cref="ReadState"/>.
             /// </summary>
             /// <param name="Length">How many bytes to read to complete this status.</param>
             /// <param name="action">What to do once all bytes have been read.</param>
@@ -69,7 +70,7 @@ namespace LightBlueFox.Connect.Net
             }
 
             /// <summary>
-            /// Creates a new readstate that represents a length prefix to be read.
+            /// Creates a new <see cref="ReadState"/> that represents a length prefix to be read.
             /// </summary>
             /// <param name="buffer"></param>
             /// <param name="action"></param>
@@ -112,23 +113,23 @@ namespace LightBlueFox.Connect.Net
         }
         #endregion
 
-        private byte[] sizeBuffer = new byte[4];
+        private readonly byte[] sizeBuffer = new byte[4];
         protected async override void StartListening()
         {
             await Task.Run(() => {
-                ReadState state = new ReadState(sizeBuffer, SizePrefixAction);
+                ReadState state = new(sizeBuffer, SizePrefixAction);
                 try
                 {
                     while (true)
                     {
 
-                        int bytesRead = Socket.Receive(state.Buffer.Slice(0, state.Length).Span);
+                        int bytesRead = Socket.Receive(state.Buffer[..state.Length].Span);
                         if (bytesRead > 0)
                         {
                             state.WriteIndex += bytesRead;
                             if (state.WriteIndex == state.Length)
                             {
-                                state = state.OnBufferFilled(state.Buffer.Slice(0, state.Length), state.DoFree);
+                                state = state.OnBufferFilled(state.Buffer[..state.Length], state.DoFree);
                             }
                         }
                     }
@@ -148,7 +149,7 @@ namespace LightBlueFox.Connect.Net
         /// Converts the size prefix into an int and rents a buffer from the ArrayPool to which the message will be read.
         /// </summary>
         /// <param name="prefix">The bytes encoding the length prefix.</param>
-        private ReadState SizePrefixAction(ReadOnlyMemory<byte> prefix, MessageReleasedHandler finishedHandling)
+        private ReadState SizePrefixAction(ReadOnlyMemory<byte> prefix, MessageReleasedHandler? finishedHandling)
         {
             int len = BinaryPrimitives.ReadInt32LittleEndian(prefix.Span);
             // TODO: Set max packet length!
@@ -158,7 +159,7 @@ namespace LightBlueFox.Connect.Net
         /// <summary>
         /// Calls the <see cref="MessageHandler"/>.
         /// </summary>
-        private ReadState MessageAction(ReadOnlyMemory<byte> message, MessageReleasedHandler finishedHandling)
+        private ReadState MessageAction(ReadOnlyMemory<byte> message, MessageReleasedHandler? finishedHandling)
         {
             MessageReceived(message, new(this), finishedHandling);
             return new ReadState(sizeBuffer, SizePrefixAction);
@@ -176,10 +177,45 @@ namespace LightBlueFox.Connect.Net
         {
             byte[] sizePrefix = new byte[4];
             BinaryPrimitives.WriteInt32LittleEndian(sizePrefix, data.Length);
-            Socket.Send(sizePrefix);
-            Socket.Send(data.Span);
+            try
+            {
+                Socket.Send(sizePrefix);
+                Socket.Send(data.Span);
+            }
+            catch (ObjectDisposedException ex)
+            {
+                CallConnectionDisconnected(ex);
+            }
+            catch (SocketException ex)
+            {
+                CallConnectionDisconnected(ex);
+            }
+            
         }
         #endregion
 
+        #region Public Properties
+
+        /// <summary>
+        /// The default value for <see cref="SaveBandwidth"/>.
+        /// </summary>
+        public const bool DefaultSaveBandwidth = false;
+
+        /// <summary>
+        /// Toggle the <see cref="Socket.NoDelay"/> flag. This will enable/disable the use of nagle's algorithm, which aims to increase bandwidth efficiency at the expense of latency by sending packets in bunches instead of one by one.
+        /// </summary>
+        public bool SaveBandwidth
+        {
+            get
+            {
+                return Socket.NoDelay;
+            }
+            set
+            {
+                Socket.NoDelay = value;
+            }
+        }
+
+        #endregion
     }
 }

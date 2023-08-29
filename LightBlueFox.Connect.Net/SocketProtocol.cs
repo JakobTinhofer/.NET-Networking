@@ -7,7 +7,7 @@
     public enum SocketProtocol
     {
         /// <summary>
-        /// The Transmition Control Protocol guarantees packet arrival and preserves order at the expense of some network speed.
+        /// The Transmission Control Protocol guarantees packet arrival and preserves order at the expense of some network speed.
         /// </summary>
         TCP = 6,
         /// <summary>
