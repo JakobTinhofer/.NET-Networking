@@ -10,7 +10,7 @@
     /// <summary>
     /// This struct is used when messages need to be stored before they can be handled, e.g. when queued up.
     /// </summary>
-    public struct MessageStoreHandle
+    public readonly struct MessageStoreHandle
     {
         /// <summary>
         /// Creates a new <see cref="MessageStoreHandle"/>.

@@ -26,16 +26,19 @@ namespace Tests.LightBlueFox.Connect.Structure
             Server myServer;
             Connection myClientConnection;
 
-            TaskCompletionSource<bool> serverMessageMatches = new TaskCompletionSource<bool>();
-            TaskCompletionSource<bool> clientMessageMatches = new TaskCompletionSource<bool>();
+            TaskCompletionSource<bool> serverMessageMatches = new();
+            TaskCompletionSource<bool> clientMessageMatches = new();
 
             Task badTask = Task.Run(() => Task.Delay(10000));
 
             Task goodTask = Task.Run<bool>(() => {
-                myServer = new(new NameValidator("test123"), new TcpSource(12321));
-                myServer.MessageHandler = (b, a) => {
-                    serverMessageMatches.SetResult(b.Length == 1 && b[0] == 123);
-                    a.Sender.WriteMessage(new byte[1] { 222 });
+                myServer = new(new NameValidator("test123"), new TcpSource(12321))
+                {
+                    MessageHandler = (b, a) =>
+                    {
+                        serverMessageMatches.SetResult(b.Length == 1 && b[0] == 123);
+                        a.Sender.WriteMessage(new byte[1] { 222 });
+                    }
                 };
                 Debug.WriteLine("Time passed: " + (DateTime.UtcNow - t).ToString(@"ss\.ff"));
                 myClientConnection = ConnectionNegotiation.ValidateConnection(new TcpConnection("localhost", 12321), ConnectionNegotiationPosition.Challenger, new NameValidator("test123"));
@@ -43,7 +46,9 @@ namespace Tests.LightBlueFox.Connect.Structure
                     clientMessageMatches.SetResult(b.Length == 1 && b[0] == 222);
                 };
 
+#pragma warning disable IDE0230 // Use UTF-8 string literal
                 myClientConnection.WriteMessage(new byte[1] { 123 });
+#pragma warning restore IDE0230 // Use UTF-8 string literal
                 return serverMessageMatches.Task.GetAwaiter().GetResult() && clientMessageMatches.Task.GetAwaiter().GetResult();
             });
 
@@ -54,9 +59,9 @@ namespace Tests.LightBlueFox.Connect.Structure
         [TestMethod]
         public void TestServerFailClient()
         {
-            TaskCompletionSource<bool> didValidate = new TaskCompletionSource<bool>();
+            TaskCompletionSource<bool> didValidate = new();
 
-            Server s = new Server(new NameValidator("1234"), new TcpSource(44444, IPAddress.Loopback));
+            Server s = new(new NameValidator("1234"), new TcpSource(44444, IPAddress.Loopback));
             
             s.OnValidationFailed += (c, s, ex) => { didValidate.SetResult(false); };
             s.OnConnectionValidated += (c, s) => { didValidate.SetResult(true); };
@@ -70,7 +75,7 @@ namespace Tests.LightBlueFox.Connect.Structure
         [DataRow(4, 34, 8)]
         public void TestSpecialServerClients(int clientsExpected, int clientPcktsExpected, int serverPcktsExpected)
         {
-            TaskCompletionSource finishedAllClientMessages = new TaskCompletionSource(false);
+            TaskCompletionSource finishedAllClientMessages = new(false);
             Random r = new();
             int serverPcktsSent = 0;
             int clientPcktsSent = 0;

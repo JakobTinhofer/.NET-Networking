@@ -4,7 +4,7 @@ using System.Diagnostics;
 namespace LightBlueFox.Connect.Util
 {
     /// <summary>
-    /// A class that represents a thread-safe FIFO datastructure, which allows datastreams from multiple threads/sources to be consomed in order by a singe consumer. Also, if there is no consumer set yet, data will be buffered until there is.
+    /// A class that represents a thread-safe FIFO data structure, which allows data streams from multiple threads/sources to be consumed in order by a singe consumer. Also, if there is no consumer set yet, data will be buffered until there is.
     /// </summary>
     public class MessageQueue
     {
@@ -25,10 +25,12 @@ namespace LightBlueFox.Connect.Util
         public MessageQueueActionHandler QueueAction;
 
 
-        private BlockingCollection<MessageStoreHandle> storedMessages = new();
+        private readonly BlockingCollection<MessageStoreHandle> storedMessages = new();
         private Task? QueueWorkerTask = null;
         private CancellationTokenSource stopTakingMessages = new();
         private CancellationToken token;
+        private readonly AutoResetEvent alteringQueueWorker = new(true);
+
         /// <summary>
         /// While this is true, messages will continuously be dequeued. If set to false, dequeuing will pause until set to true again.
         /// </summary>
@@ -42,7 +44,7 @@ namespace LightBlueFox.Connect.Util
             {   
                 if(token.IsCancellationRequested)
                 {
-                    workerCanceled(token);
+                    WorkerCanceled(token);
                 }
                 
                 alteringQueueWorker.WaitOne();
@@ -60,11 +62,7 @@ namespace LightBlueFox.Connect.Util
                 }
             }
         }
-
-
-       
-
-        private AutoResetEvent alteringQueueWorker = new(true);
+        
         #endregion
 
         #region I/O
@@ -84,13 +82,12 @@ namespace LightBlueFox.Connect.Util
                     break;
                 }
             }
-            workerCanceled(myToken);
+            WorkerCanceled(myToken);
         }
 
-        private void workerCanceled(CancellationToken t)
+        private void WorkerCanceled(CancellationToken t)
         {
             if (t != token) return;
-            var id = QueueWorkerTask?.Id;
             QueueWorkerTask = null;
             stopTakingMessages = new CancellationTokenSource();
             token = stopTakingMessages.Token;

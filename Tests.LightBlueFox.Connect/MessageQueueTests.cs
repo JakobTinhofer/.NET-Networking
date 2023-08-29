@@ -17,14 +17,18 @@ namespace Tests.LightBlueFox.Connect
         {
             int ctr = 2;
             bool expectingPassthrough = true;
-            MessageQueueActionHandler h = (MessageStoreHandle s) => {
+            
+            void h(MessageStoreHandle s)
+            {
                 Debug.WriteLine("Message dequeued.");
                 ctr--;
                 Assert.IsTrue(expectingPassthrough);
-            };
+            }
 
-            MessageQueue queue = new(h);
-            queue.WorkOnQueue = true;
+            MessageQueue queue = new(h)
+            {
+                WorkOnQueue = true
+            };
 
             queue.Add(new MessageStoreHandle());
 
@@ -46,8 +50,8 @@ namespace Tests.LightBlueFox.Connect
         public void TwoParallelQueueTests()
         {
             int q1Expc = 1, q2Expc = 1;
-            MessageQueue q1 = new MessageQueue((MessageStoreHandle s) => { q1Expc--; });
-            MessageQueue q2 = new MessageQueue((MessageStoreHandle s) => { q2Expc--; });
+            MessageQueue q1 = new((MessageStoreHandle s) => { q1Expc--; });
+            MessageQueue q2 = new((MessageStoreHandle s) => { q2Expc--; });
 
             q1.WorkOnQueue = true;
             q2.WorkOnQueue = true;
@@ -70,14 +74,15 @@ namespace Tests.LightBlueFox.Connect
 
         [TestMethod]
         [Timeout(TestTimeout.Infinite)]
-        public void CancelingItsselfQueueTest()
+        public void CancelingItsSelfQueueTest()
         {
             AutoResetEvent? ev = null;
             AutoResetEvent waitDumb = new(false);
             MessageQueue? q = null;
-            q = new((MessageStoreHandle s) => {
+            q = new((MessageStoreHandle s) =>
+            {
                 if (q == null) return;
-                if(ev == null)
+                if (ev == null)
                 {
                     q.WorkOnQueue = false;
                     q.WorkOnQueue = true;
@@ -87,9 +92,10 @@ namespace Tests.LightBlueFox.Connect
                 {
                     ev.Set();
                 }
-            });
-
-            q.WorkOnQueue = true;
+            })
+            {
+                WorkOnQueue = true
+            };
 
             q.Add(new());
             waitDumb.WaitOne();
