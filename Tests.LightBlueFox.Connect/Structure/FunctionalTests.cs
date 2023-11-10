@@ -95,7 +95,7 @@ namespace Tests.LightBlueFox.Connect.Structure
 
             s.OnConnectionDisconnected += (c, s) => {
                 clientsDisconnected++;
-                Debug.WriteLine("[CLIENT DISCONNECT] client disconnected. CPR/SPR: {0}/{2}, CPR/CPS: {1}{3}, CD/CC: {5}/{4}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);
+                Debug.WriteLine(DateTime.Now.ToString("mm:ss:fffff") + "[CLIENT DISCONNECT] client disconnected. CPR/SPR: {0}/{2}, CPR/CPS: {1}{3}, CD/CC: {5}/{4}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);
             };
 
             s.MessageHandler = (m, args) =>
@@ -103,12 +103,12 @@ namespace Tests.LightBlueFox.Connect.Structure
                 if (m.SequenceEqual(reverseMessageBytes)) serverPcktsReceived++;
                 else throw new Exception("Received invalid data from client!");
                 if (serverPcktsReceived == clientPcktsExpected * clientsExpected && clientPcktsReceived == serverPcktsExpected * clientsExpected && !finishedAllClientMessages.Task.IsCompleted) finishedAllClientMessages.SetResult();
-                Debug.WriteLine("[SERVER HANDLER] received packet. CPR: {0}, CPS: {1}, SPR: {2}, SPS: {3}, CC: {4}, CD: {5}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);
+                Debug.WriteLine(DateTime.Now.ToString("mm:ss:fffff") + "[SERVER HANDLER] received packet. CPR: {0}, CPS: {1}, SPR: {2}, SPS: {3}, CC: {4}, CD: {5}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);
             };
 
             s.OnConnectionValidated += (c, s) =>
             {
-                Debug.WriteLine("[CLIENT VALIDATED] validated client. CPR: {0}, CPS: {1}, SPR: {2}, SPS: {3}, CC: {4}, CD: {5}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);
+                Debug.WriteLine(DateTime.Now.ToString("mm:ss:fffff") + "[CLIENT VALIDATED] validated client. CPR: {0}, CPS: {1}, SPR: {2}, SPS: {3}, CC: {4}, CD: {5}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);
                 for (int i = 0; i < serverPcktsExpected; i++)
                 {
                     Thread.Sleep(r.Next(0, 100));
@@ -129,7 +129,7 @@ namespace Tests.LightBlueFox.Connect.Structure
                         if (m.SequenceEqual(messageBytes)) clientPcktsReceived++;
                         else throw new Exception("Received invalid data from server!");
                         if (serverPcktsReceived == clientPcktsExpected * clientsExpected && clientPcktsReceived == serverPcktsExpected * clientsExpected && !finishedAllClientMessages.Task.IsCompleted) finishedAllClientMessages.SetResult();
-                        Debug.WriteLine("[CLIENT HANDLER] received packet. CPR: {0}, CPS: {1}, SPR: {2}, SPS: {3}, CC: {4}, CD: {5}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);
+                        Debug.WriteLine(DateTime.Now.ToString("mm:ss:fffff") + " [CLIENT HANDLER] received packet. CPR: {0}, CPS: {1}, SPR: {2}, SPS: {3}, CC: {4}, CD: {5}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);
                     };
                     for (int j = 0; j < clientPcktsExpected; j++)
                     {
