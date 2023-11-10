@@ -153,7 +153,6 @@ namespace LightBlueFox.Connect.Structure
                 conn.CloseConnection();
                 throw new ObjectDisposedException("Server already closed!");
             }
-            Debug.WriteLine("New connection, starting negotiation!");
             ongoingNegotiations.Add(new(conn, ConnectionNegotiationPosition.Authorizer, Validators, NegotiationFailed, NegotiationSucceeded));
         }
 
