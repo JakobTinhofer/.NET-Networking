@@ -3,6 +3,7 @@ using LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
@@ -21,6 +22,7 @@ namespace Tests.LightBlueFox.Connect.CustomProtocol
             l.AddSerializers(typeof(TestStruct));
             var v = new TestStruct();
             var buff = l.Serialize(v);
+            Debug.WriteLine(BitConverter.ToString(buff));
             var deser = l.Deserialize<TestStruct>(buff);
             Assert.IsTrue(v.Equals(deser));
         }
@@ -38,16 +40,61 @@ namespace Tests.LightBlueFox.Connect.CustomProtocol
         }
 
         [TestMethod]
-        public void TestDependancy()
+        public void DeserializeInvalidObject()
+        {
+            SerializationLibrary l = new SerializationLibrary();
+            l.AddSerializers(typeof(TestClass));
+
+            Assert.ThrowsException<ArgumentException>(() => { l.Deserialize<TestClass>(new byte[0] { }); });   
+        }
+
+        [TestMethod]
+        public void SerializeNullValueObject()
+        {
+            SerializationLibrary l = new SerializationLibrary();
+            l.AddSerializers(typeof(TestClass));
+            byte[] arr = {1,1,1,1,1,1,1,1,1,1,1,1};
+            Assert.ThrowsException<ArgumentException>(() => { arr = l.Serialize(TestClass.createEmpty()); });
+            Debug.WriteLine(BitConverter.ToString(arr));
+        }
+
+        [TestMethod]
+        public void TestNullableObject()
+        {
+            SerializationLibrary l = new SerializationLibrary();
+            l.AddSerializers(typeof(HasNullable));
+            var arr = l.Serialize(new HasNullable());
+            Assert.IsTrue(l.Deserialize<HasNullable>(arr).Equals(new HasNullable()));
+        }
+
+        [TestMethod]
+        public void TestNonInitializedStruct()
+        {
+            SerializationLibrary l = new SerializationLibrary();
+            l.AddSerializers(typeof(TestNull1));
+            var arr = l.Serialize(new HasNullable());
+            Assert.IsTrue(l.Deserialize<TestNull1>(arr).Equals(new HasNullable()));
+        }
+
+        [TestMethod]
+        public void TestDependency()
         {
             SerializationLibrary l = new();
-
-            Assert.ThrowsException<MissingSerializationDependencyException>(() => { l.AddSerializers(typeof(DependantClass)); });
 
             l.AddSerializers(typeof(DependantClass), typeof(TestStruct));
             var c = new DependantClass();
             var b = l.Serialize(c);
-            Assert.IsTrue(c.Equals(l.Deserialize<DependantClass>(b)));
+            var res = l.Deserialize<DependantClass>(b);
+            
+            Assert.IsTrue(c.Equals(res));
+        }
+
+        [TestMethod]
+        public void TestMissingDependency()
+        {
+            SerializationLibrary l = new();
+
+            Assert.ThrowsException<MissingSerializationDependencyException>(() => { l.AddSerializers(typeof(DependantClass)); });
         }
 
         [TestMethod]
@@ -71,14 +118,16 @@ namespace Tests.LightBlueFox.Connect.CustomProtocol
         }
 
 
+        
+
         [CompositeSerialize<TestStruct>]
         private struct TestStruct : IEquatable<TestStruct>
         {
-            int fixedSize = 3;
-            string dynSize = "hello";
+            public int fixedSize = 3;
+            public string dynSize = "hello";
 
-            int[] intArr = { 1234, 321, -231};
-            string[] stringArr = { "asdf", "3sadf", "sss"};
+            public int[] intArr = { 1234, 321, -231};
+            public string[] stringArr = { "asdf", "3sadf", "sss"};
 
             public TestStruct()
             {
@@ -105,6 +154,16 @@ namespace Tests.LightBlueFox.Connect.CustomProtocol
                 dynSize = "NOOO";
                 intArr = new[] { 333, 44, 55 };
                 stringArr = new[] { "fas", "asd", "aa" }; 
+            }
+
+            public static TestClass createEmpty()
+            {
+                return new TestClass()
+                {
+                    dynSize = null,
+                    intArr = null,
+                    stringArr = null,
+                };
             }
 
             public bool Equals(TestClass? other)
@@ -143,6 +202,19 @@ namespace Tests.LightBlueFox.Connect.CustomProtocol
         private class Cyclic2
         {
             Cyclic1 dependency;
+        }
+
+        [CompositeSerialize<TestNull1>]
+        private struct TestNull1
+        {
+            string neverSet;
+            int neverSet2;
+        }
+
+        [CompositeSerialize<HasNullable>]
+        private class HasNullable
+        {
+            string? nullableString;
         }
     }
 }

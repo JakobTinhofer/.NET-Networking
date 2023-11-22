@@ -9,12 +9,6 @@ using System.Threading.Tasks;
 namespace Tests.LightBlueFox.Connect.CustomProtocol
 {
 
-    public struct MyStructType
-    {
-        int Number;
-        string Data;
-    }
-
     public enum MyEnum
     {
         FirstValue,
@@ -25,22 +19,26 @@ namespace Tests.LightBlueFox.Connect.CustomProtocol
     [TestClass]
     public class CustomSerializers
     {
-        [CustomSerialization<MyEnum>(1)]
-        public static byte[] SerializeEnum(MyEnum val) => new byte[1] { (byte)val };
-
-        [CustomDeserialization<MyEnum>(1)]
-        public static MyEnum DeserializeEnum(ReadOnlyMemory<byte> data) => (MyEnum)data.Span[0];
-
 
         [TestMethod]
-        public void testCustomSer()
+        public void TestUnknownEnum()
         {
             SerializationLibrary l = new SerializationLibrary();
-            l.AddSerializers(this.GetType());
 
             var b = l.Serialize(MyEnum.SecondValue);
             Assert.IsTrue(l.Deserialize<MyEnum>(b) == MyEnum.SecondValue);
         }
 
+        [TestMethod]
+        public void TestNullableType()
+        {
+            SerializationLibrary l = new SerializationLibrary();
+            Random rnd = new Random();
+
+            string? nullable = rnd.Next() > 0.5 ? null : "not null";
+
+            var b = l.Serialize(nullable);
+            Assert.AreEqual(nullable, l.Deserialize<string?>(b));
+        }
     }
 }

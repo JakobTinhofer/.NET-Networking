@@ -29,7 +29,7 @@ namespace Tests.LightBlueFox.Connect.CustomProtocol
             data = l.Serialize(123456789990);
             Assert.IsTrue(l.Deserialize<long>(data) == 123456789990);
 
-            Assert.ThrowsException<SerializationNotFoundException>(() =>
+            Assert.ThrowsException<SerializationEntryNotFoundException>(() =>
             {
                 data = l.Serialize(12.4);
             });
