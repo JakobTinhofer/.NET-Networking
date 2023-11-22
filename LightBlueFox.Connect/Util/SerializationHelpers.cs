@@ -11,13 +11,21 @@ namespace LightBlueFox.Connect.Util
     internal static class SerializationHelpers
     {
         static MethodInfo slice = typeof(ReadOnlyMemory<byte>).GetMethod("Slice", new[] { typeof(int), typeof(int) }) ?? throw new InvalidOperationException("Could not find slice on memory!");
-        public static void DoSlice(this ILGenerator il, LocalBuilder from, LocalBuilder? len = null, int? intLen = null, bool updateIndex = true, int argIndex = 0)
+        public static void DoSlice(this ILGenerator il, LocalBuilder from, LocalBuilder? len = null, int? intLen = null, bool updateIndex = true, int argIndex = 0, bool debug=false)
         {
             if ((len == null) == (intLen == null)) throw new ArgumentException("Can either provide int len or local var!");
-            il.Emit(OpCodes.Ldarga_S, 0);
+            if(debug != true) il.Emit(OpCodes.Ldarga_S, 0);
             il.Emit(OpCodes.Ldloc, from);
             if (intLen != null) il.Emit(OpCodes.Ldc_I4, intLen ?? 0);
             else if (len != null) il.Emit(OpCodes.Ldloc, len);
+
+            if (debug)
+            {
+                il.WriteLineInt();
+                il.WriteLineInt();
+                il.DoSlice(from, len, intLen, updateIndex, argIndex, false);
+                return;
+            }
 
             il.Emit(OpCodes.Call, slice);
 
@@ -29,6 +37,12 @@ namespace LightBlueFox.Connect.Util
                 il.Emit(OpCodes.Add);
                 il.Emit(OpCodes.Stloc, from);
             }
+        }
+
+        public static void WriteLineInt(this ILGenerator il)
+        {
+            //il.Emit(OpCodes.Pop);
+            il.Emit(OpCodes.Call, typeof(Console).GetMethod("WriteLine", new[] { typeof(int) }));
         }
     }
 }
