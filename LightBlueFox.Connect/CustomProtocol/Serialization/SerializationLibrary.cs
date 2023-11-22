@@ -1,26 +1,17 @@
 ﻿using LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers;
+using System.ComponentModel.Design;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 
 namespace LightBlueFox.Connect.CustomProtocol.Serialization
 {
-    public class SerializationNotFoundException : Exception
+    public class SerializationEntryNotFoundException : Exception
     {
-        public SerializationNotFoundException()
+        public readonly Type EntryType;
+        public SerializationEntryNotFoundException(Type t) : base("No serializer for " + t + " found.")
         {
-        }
-
-        public SerializationNotFoundException(string? message) : base(message)
-        {
-        }
-
-        public SerializationNotFoundException(string? message, Exception? innerException) : base(message, innerException)
-        {
-        }
-
-        protected SerializationNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+            EntryType = t;
         }
     }
 
@@ -36,7 +27,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             if (!SavedSerialization.ContainsKey(t))
             {
                 if (t.IsArray) SavedSerialization[t] = SerializationLibraryEntry.CreateArrayEntry(GetEntry(t.GetElementType() ?? throw new("Could not get array element type")));
-                else throw new SerializationNotFoundException("No serializer for " + t + " found.");
+                else throw new SerializationEntryNotFoundException(t);
             }
             return SavedSerialization[t];
         }
@@ -71,13 +62,15 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
                 if (attr == null) throw new ArgumentException("Given type does not have CompositeSerializeAttribute!");
                 try
                 {
-                    var t = typeof(CompositeBlueprint<>).MakeGenericType(ct).GetConstructor(new[] { typeof(SerializationAttribute), typeof(SerializationLibrary) }) ?? throw new InvalidOperationException("Could not find constructor on CompositeBlueprint!");
-                    SavedSerialization.Add(ct, (SerializationLibraryEntry)t.Invoke(new object[] { attr, this }));
+                    var t = typeof(CompositeLibraryEntry<>).MakeGenericType(ct).GetConstructor(new[] { typeof(SerializationLibrary) }) ?? throw new InvalidOperationException("Could not find constructor on CompositeBlueprint!");
+                    SavedSerialization.Add(ct, (SerializationLibraryEntry)t.Invoke(new object[] { this }));
                 }
-                catch (MissingSerializationDependencyException ex)
+                catch (TargetInvocationException tEx)
                 {
+                    var ex = tEx.InnerException as MissingSerializationDependencyException ?? throw tEx.InnerException ?? new Exception("An unknown error occured in creating the custom serializers: " + tEx.Message + " @ " + tEx.Source);
+
                     if (cyclicCheck.ContainsKey(ex.MissingDependency) && cyclicCheck[ex.MissingDependency] == ct) throw new CyclicDependencyException(ct, ex.MissingDependency);
-                    if (!compositeTypes.Contains(ex.MissingDependency)) throw;
+                    if (!compositeTypes.Contains(ex.MissingDependency)) throw ex;
                     cyclicCheck.Add(ct, ex.MissingDependency);
                     staggeredTypes.Add(ct);
                 }
@@ -143,7 +136,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
                 SavedSerialization.Add(t, SerializationLibraryEntry.CreateEntry(deserializers[t].Item1, serializers[t].Item2, deserializers[t].Item2));
             }
 
-            AddCompositeSerializers(compositeTypes.ToArray());
+            if(compositeTypes.Count > 0) AddCompositeSerializers(compositeTypes.ToArray());
             
         }
     }
