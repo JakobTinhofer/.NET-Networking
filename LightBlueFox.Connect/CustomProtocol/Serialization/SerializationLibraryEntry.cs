@@ -14,15 +14,17 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
 
     public abstract class SerializationLibraryEntry
     {
-        public readonly SerializationAttribute Attribute;
+        public bool IsFixedSize { get { return FixedSize != null; } }
+        public int? FixedSize { get; private init; }
+
+        public readonly Type Type;
 
         public abstract Delegate SerializerPointer { get; }
         public abstract Delegate DeserializerPointer { get; }
-
-
-        public SerializationLibraryEntry(SerializationAttribute attr)
+        public SerializationLibraryEntry(int? fixedSize, Type type)
         {
-            Attribute = attr;
+            FixedSize = fixedSize;
+            Type = type;
         }
 
         public static SerializationLibraryEntry CreateEntry(SerializationAttribute attr, MethodInfo serializer, MethodInfo deserializer)
@@ -33,14 +35,14 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             Type tDes = typeof(DeserializerDelegate<>).MakeGenericType(attr.Type);
             Type entryType = typeof(SerializationLibraryEntry<>).MakeGenericType(attr.Type);
 
-            return entryType.GetConstructor(new Type[3] { typeof(SerializationAttribute), tSer, tDes })?.Invoke(new object[3] { attr, serializer.CreateDelegate(tSer), deserializer.CreateDelegate(tDes) }) as SerializationLibraryEntry ?? throw new InvalidOperationException("Somehow null in creating entry");
+            return entryType.GetConstructor(new Type[3] { typeof(int?), tSer, tDes })?.Invoke(new object?[3] { attr.FixedSize, serializer.CreateDelegate(tSer), deserializer.CreateDelegate(tDes) }) as SerializationLibraryEntry ?? throw new InvalidOperationException("Somehow null in creating entry");
         }
 
         public static SerializationLibraryEntry CreateArrayEntry(SerializationLibraryEntry baseType)
         {
             return typeof(ArraySerializationLibraryEntry<>)
-                .MakeGenericType(baseType.Attribute.Type)
-                .GetConstructor(new Type[1]{ typeof(SerializationLibraryEntry<>).MakeGenericType(baseType.Attribute.Type) })
+                .MakeGenericType(baseType.Type)
+                .GetConstructor(new Type[1]{ typeof(SerializationLibraryEntry<>).MakeGenericType(baseType.Type) })
                 ?.Invoke(new object[1] {baseType})
                 as SerializationLibraryEntry ?? throw new("Could not create Array entry");
         }
@@ -55,19 +57,14 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
 
         public override Delegate DeserializerPointer => Deserializer;
 
-        public SerializationLibraryEntry(SerializationAttribute attr, SerializerDelegate<T> ser, DeserializerDelegate<T> des) : base(attr){
+        public SerializationLibraryEntry(int? fixedSize, SerializerDelegate<T> ser, DeserializerDelegate<T> des) : base(fixedSize, typeof(T)){
             Serializer = ser;
             Deserializer = des;
         }
 
-        public SerializationLibraryEntry(SerializationAttribute attr, (SerializerDelegate<T>, DeserializerDelegate<T>) ser) : this(attr, ser.Item1, ser.Item2) { }
-
-
-
+        public SerializationLibraryEntry(int? fixedSize, (SerializerDelegate<T>, DeserializerDelegate<T>) ser) : this(fixedSize, ser.Item1, ser.Item2) { }
 
         public T Deserialize(ReadOnlyMemory<byte> data) { return Deserializer(data); }
         public byte[] Serialize(T obj) { return Serializer(obj); }
-
-        
     }
 }

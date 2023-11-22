@@ -1,13 +1,20 @@
 ﻿using LightBlueFox.Connect.Util;
+using System.Data;
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 
 namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
 {
-    public class CompositeBlueprint<T> : SerializationLibraryEntry<T>
+    public class CompositeLibraryEntry<T> : SerializationLibraryEntry<T>
     {
+        public static bool AutoSerializePrivateFields = true;
 
-        private static SerializerDelegate<T> buildSerializer(List<FieldInfo> fields, SerializationLibrary l)
+
+        private struct FieldArgs { public FieldInfo field; public SerializationLibraryEntry entry; }
+
+        private static SerializerDelegate<T> buildSerializer(List<FieldArgs> fields, SerializationLibrary l, int? size)
         {
             // PREP: 
             var uintSer = typeof(DefaultSerializers).GetMethod("UInt32_Serialize", new Type[1] { typeof(uint) }) ?? throw new InvalidOperationException("Could not find uint converter...");
@@ -34,16 +41,9 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
             for (int fi = 0; fi < fields.Count; fi++)
             {
                 // PREP
-                var f = fields[fi];
-                SerializationLibraryEntry? entr = null;
-                try
-                {
-                    entr = l.GetEntry(f.FieldType);
-                }
-                catch (SerializationNotFoundException ex)
-                {
-                    throw new MissingSerializationDependencyException(f.FieldType);
-                }
+                FieldInfo f = fields[fi].field;
+                SerializationLibraryEntry entr = fields[fi].entry;
+
                 var delType = typeof(SerializerDelegate<>).MakeGenericType(f.FieldType);
                 paramArray[fi] = entr.SerializerPointer;
                 #region Read Field
@@ -66,7 +66,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
                 #endregion
 
                 #region Optional Size Prefix
-                if (!entr.Attribute.IsFixedSize)
+                if (!entr.IsFixedSize)
                 {
                     il.Emit(OpCodes.Ldloc_0); // MemoryStream
                     il.Emit(OpCodes.Ldloc_1); // byte[], MemoryStream
@@ -103,11 +103,13 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
             var del = (Func<T, Delegate[], byte[]>)m.CreateDelegate(typeof(Func<T, Delegate[], byte[]>));
             return (ob) =>
             {
-                return del(ob, paramArray);
+                byte[] res = del(ob, paramArray);
+                if (size != null && res.Length != size) throw new InvalidOperationException("Created buffer was of size " + res.Length + " not the expected " + size);
+                return res;
             };
         }
 
-        private static DeserializerDelegate<T> buildDefaultDeserializer(List<FieldInfo> fields, SerializationLibrary l)
+        private static DeserializerDelegate<T> buildDefaultDeserializer(List<FieldArgs> fields, SerializationLibrary l, int? size)
         {
             Delegate[] paramArray = new Delegate[fields.Count];
 
@@ -123,76 +125,90 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
             il.Emit(OpCodes.Ldc_I4_0);
             il.Emit(OpCodes.Stloc, bufferIndex);
 
+            
+
             il.Emit(OpCodes.Ldarg_2);
             il.Emit(OpCodes.Call, typeof(Activator).GetMethod("CreateInstance", new Type[1] { typeof(Type) }) ?? throw new("Could not get activator method"));
             il.Emit(OpCodes.Stloc, obj);
 
-
             for (int i = 0; i < fields.Count; i++)
             {
-                var field = fields[i];
-                SerializationLibraryEntry? entry = null;
-                try
-                {
-                    entry = l.GetEntry(field.FieldType);
-                }
-                catch (KeyNotFoundException ex)
-                {
-                    throw new MissingSerializationDependencyException(field.FieldType);
-                }
+                FieldInfo field = fields[i].field;
+                SerializationLibraryEntry entry = fields[i].entry;
 
                 var delType = typeof(DeserializerDelegate<>).MakeGenericType(field.FieldType);
                 paramArray[i] = entry.DeserializerPointer;
 
-                il.Emit(OpCodes.Ldloca_S, obj);
+                if(typeof(T).IsValueType) il.Emit(OpCodes.Ldloca_S, obj);
+                else il.Emit(OpCodes.Ldloc, obj);
 
                 il.Emit(OpCodes.Ldarg_1);
                 il.Emit(OpCodes.Ldc_I4, i);
                 il.Emit(OpCodes.Ldelem, typeof(Delegate));
 
-
-                if (!entry.Attribute.IsFixedSize)
+                if (!entry.IsFixedSize)
                 {
                     il.DoSlice(bufferIndex, intLen: sizeof(uint));
                     il.Emit(OpCodes.Call, uintDes);
                     il.Emit(OpCodes.Stloc, len);
+
                     il.DoSlice(bufferIndex, len, null);
                 }
                 else
                 {
-                    il.DoSlice(bufferIndex, intLen: entry.Attribute.FixedSize ?? throw new("Attribute says fixed size but fixed size is null!"));
+                    il.DoSlice(bufferIndex, intLen: entry.FixedSize ?? throw new("Attribute says fixed size but fixed size is null!"));
                 }
 
+                
                 il.Emit(OpCodes.Callvirt, delType.GetMethod("Invoke") ?? throw new("No invoke!"));
                 il.Emit(OpCodes.Stfld, field);
             }
-
             il.Emit(OpCodes.Ldloc, obj);
             il.Emit(OpCodes.Ret);
 
+            
+
             var del = (Func<ReadOnlyMemory<byte>, Delegate[], Type, T>)m.CreateDelegate<Func<ReadOnlyMemory<byte>, Delegate[], Type, T>>();
-            return (m) => { return del(m, paramArray, typeof(T)); };
+            return (m) => {
+                if (size != null && m.Length != size) throw new ArgumentException("Need buffer of len " + size + ", only got len " + m.Length);
+                return del(m, paramArray, typeof(T)); 
+            };
         }
 
-        private static (SerializerDelegate<T>, DeserializerDelegate<T>) buildSerializationMethods(Type t, SerializationLibrary l)
+        private static (int?, SerializerDelegate<T>, DeserializerDelegate<T>) getConstructorArgs(Type t, SerializationLibrary l)
         {
             if (t.IsArray || t.IsAbstract || t.IsEnum) throw new InvalidOperationException("Cannot be used on arrays/abstract/enum types");
 
-            List<FieldInfo> types = new List<FieldInfo>();
+            List<FieldArgs> args = new List<FieldArgs>();
+            int? fixedSize = 0;
 
-            foreach (var field in t.GetFields())
+            foreach (var field in RuntimeReflectionExtensions.GetRuntimeFields(typeof(T)))
             {
                 if (field.IsStatic || field.HasAttribute<DontSerializeAttribute>()) continue;
-                if ((field.IsPrivate && field.HasAttribute<ForceSerializationAttribute>()) || field.IsPublic) types.Add(field);
+                if ((field.IsPrivate && (field.HasAttribute<ForceSerializationAttribute>() || AutoSerializePrivateFields)) || field.IsPublic) try
+                {
+                        SerializationLibraryEntry entr = l.GetEntry(field.FieldType);
+                        args.Add(new()
+                        {
+                            field = field,
+                            entry = entr,
+                        });
+                        if (fixedSize != null) fixedSize =  entr.IsFixedSize ? fixedSize + entr.FixedSize : null;
+                        
+                }
+                catch (SerializationEntryNotFoundException)
+                {
+                    throw new MissingSerializationDependencyException(field.FieldType);
+                }    
             }
 
-            return (buildSerializer(types, l), buildDefaultDeserializer(types, l));
+            return (fixedSize, buildSerializer(args, l, fixedSize), buildDefaultDeserializer(args, l, fixedSize));
 
         }
 
-        public CompositeBlueprint(SerializationAttribute attr, SerializationLibrary l) : base(attr, buildSerializationMethods(typeof(T), l))
-        {
-        }
+        private CompositeLibraryEntry((int?, SerializerDelegate<T>, DeserializerDelegate<T>) args) : base(args.Item1, args.Item2, args.Item3) { }
+        
+        public CompositeLibraryEntry(SerializationLibrary l) : this(getConstructorArgs(typeof(T), l)) { }
     }
 
     internal static class ExtentionMethods

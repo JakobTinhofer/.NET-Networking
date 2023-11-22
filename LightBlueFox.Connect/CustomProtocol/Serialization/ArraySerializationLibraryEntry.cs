@@ -24,7 +24,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             DynamicMethod m = new DynamicMethod("EMITD_arrayser_" + typeof(T), typeof(byte[]), new Type[2] { typeof(T[]), typeof(Delegate) }, true);
             var il = m.GetILGenerator();
             var stream = il.DeclareLocal(typeof(MemoryStream));
-            var buffer = baseEntry.Attribute.IsFixedSize ? null : il.DeclareLocal(typeof(byte[]));
+            var buffer = baseEntry.IsFixedSize ? null : il.DeclareLocal(typeof(byte[]));
             var len = il.DeclareLocal(typeof(int));
             var i = il.DeclareLocal(typeof(int));
             var loopCondition = il.DefineLabel();
@@ -138,7 +138,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             var loopIterator = il.DefineLabel();
             var loopCondition = il.DefineLabel();
 
-            int? isSizeConst = baseEntry.Attribute.FixedSize;
+            int? isSizeConst = baseEntry.FixedSize;
 
             var bufferIndex = il.DeclareLocal(typeof(int));
             var len = il.DeclareLocal(typeof(int));
@@ -211,7 +211,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
         
         
 
-        public ArraySerializationLibraryEntry(SerializationLibraryEntry baseTypeEntry) : base(new CustomSerializationAttribute<T[]>(), GenerateArraySerializer(baseTypeEntry), GenerateArrayDeserializer(baseTypeEntry))
+        public ArraySerializationLibraryEntry(SerializationLibraryEntry baseTypeEntry) : base(fixedSize: null, GenerateArraySerializer(baseTypeEntry), GenerateArrayDeserializer(baseTypeEntry))
         {
         }
     }
