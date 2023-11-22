@@ -31,22 +31,22 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
         }
     }
 
-    public abstract class SerializationAttribute<T> : SerializationMethodAttribute
+    public abstract class AtomicSerializationAttribute<T> : SerializationMethodAttribute
     {
-        public SerializationAttribute(int? fixedSize, bool isSerializer) : base(fixedSize, typeof(T), isSerializer) { }
+        public AtomicSerializationAttribute(int? fixedSize, bool isSerializer) : base(fixedSize, typeof(T), isSerializer) { }
     }
 
     [AttributeUsage(AttributeTargets.Method)]
-    public class CustomSerializationAttribute<T> : SerializationAttribute<T>
+    public class AtomicSerializerAttribute<T> : AtomicSerializationAttribute<T>
     {
-        public CustomSerializationAttribute(): base(null, true) { }
-        public CustomSerializationAttribute(int fixedSize) : base(fixedSize, true) { }
+        public AtomicSerializerAttribute(): base(null, true) { }
+        public AtomicSerializerAttribute(int fixedSize) : base(fixedSize, true) { }
     }
 
     [AttributeUsage(AttributeTargets.Method)]
-    public class CustomDeserializationAttribute<T> : SerializationAttribute<T>
+    public class AtomicDeserializerAttribute<T> : AtomicSerializationAttribute<T>
     {
-        public CustomDeserializationAttribute() : base(null, false) { }
-        public CustomDeserializationAttribute(int fixedSize) : base(fixedSize, false) { }
+        public AtomicDeserializerAttribute() : base(null, false) { }
+        public AtomicDeserializerAttribute(int fixedSize) : base(fixedSize, false) { }
     }
 }
