@@ -1,17 +1,11 @@
 ﻿using LightBlueFox.Connect.Util;
-using System.Data;
-using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
 
 namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
 {
     public class CompositeLibraryEntry<T> : SerializationLibraryEntry<T>
     {
-        public static bool AutoSerializePrivateFields = true;
-
-
         private struct FieldArgs { public FieldInfo field; public SerializationLibraryEntry entry; }
 
         private static SerializerDelegate<T> buildSerializer(List<FieldArgs> fields, SerializationLibrary l, int? size)
@@ -125,7 +119,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
             il.Emit(OpCodes.Ldc_I4_0);
             il.Emit(OpCodes.Stloc, bufferIndex);
 
-            
+
 
             il.Emit(OpCodes.Ldarg_2);
             il.Emit(OpCodes.Call, typeof(Activator).GetMethod("CreateInstance", new Type[1] { typeof(Type) }) ?? throw new("Could not get activator method"));
@@ -139,7 +133,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
                 var delType = typeof(DeserializerDelegate<>).MakeGenericType(field.FieldType);
                 paramArray[i] = entry.DeserializerPointer;
 
-                if(typeof(T).IsValueType) il.Emit(OpCodes.Ldloca_S, obj);
+                if (typeof(T).IsValueType) il.Emit(OpCodes.Ldloca_S, obj);
                 else il.Emit(OpCodes.Ldloc, obj);
 
                 il.Emit(OpCodes.Ldarg_1);
@@ -159,19 +153,20 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
                     il.DoSlice(bufferIndex, intLen: entry.FixedSize ?? throw new("Attribute says fixed size but fixed size is null!"));
                 }
 
-                
+
                 il.Emit(OpCodes.Callvirt, delType.GetMethod("Invoke") ?? throw new("No invoke!"));
                 il.Emit(OpCodes.Stfld, field);
             }
             il.Emit(OpCodes.Ldloc, obj);
             il.Emit(OpCodes.Ret);
 
-            
+
 
             var del = (Func<ReadOnlyMemory<byte>, Delegate[], Type, T>)m.CreateDelegate<Func<ReadOnlyMemory<byte>, Delegate[], Type, T>>();
-            return (m) => {
+            return (m) =>
+            {
                 if (size != null && m.Length != size) throw new ArgumentException("Need buffer of len " + size + ", only got len " + m.Length);
-                return del(m, paramArray, typeof(T)); 
+                return del(m, paramArray, typeof(T));
             };
         }
 
@@ -184,22 +179,22 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
 
             foreach (var field in RuntimeReflectionExtensions.GetRuntimeFields(typeof(T)))
             {
-                if (field.IsStatic || field.HasAttribute<DontSerializeAttribute>()) continue;
-                if ((field.IsPrivate && (field.HasAttribute<ForceSerializationAttribute>() || AutoSerializePrivateFields)) || field.IsPublic) try
+                if (field.IsStatic) continue;
+                try
                 {
-                        SerializationLibraryEntry entr = l.GetEntry(field.FieldType);
-                        args.Add(new()
-                        {
-                            field = field,
-                            entry = entr,
-                        });
-                        if (fixedSize != null) fixedSize =  entr.IsFixedSize ? fixedSize + entr.FixedSize : null;
-                        
+                    SerializationLibraryEntry entr = l.GetEntry(field.FieldType);
+                    args.Add(new()
+                    {
+                        field = field,
+                        entry = entr,
+                    });
+                    if (fixedSize != null) fixedSize = entr.IsFixedSize ? fixedSize + entr.FixedSize : null;
+
                 }
                 catch (SerializationEntryNotFoundException)
                 {
                     throw new MissingSerializationDependencyException(field.FieldType);
-                }    
+                }
             }
 
             return (fixedSize, buildSerializer(args, l, fixedSize), buildDefaultDeserializer(args, l, fixedSize));
@@ -207,20 +202,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
         }
 
         private CompositeLibraryEntry((int?, SerializerDelegate<T>, DeserializerDelegate<T>) args) : base(args.Item1, args.Item2, args.Item3) { }
-        
+
         public CompositeLibraryEntry(SerializationLibrary l) : this(getConstructorArgs(typeof(T), l)) { }
-    }
-
-    internal static class ExtentionMethods
-    {
-        public static bool HasAttribute(this MemberInfo i, Type attrType)
-        {
-            return i.GetCustomAttribute(attrType) != null;
-        }
-
-        public static bool HasAttribute<T>(this MemberInfo i)
-        {
-            return i.HasAttribute(typeof(T));
-        }
     }
 }

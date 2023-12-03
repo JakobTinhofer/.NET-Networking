@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Reflection;
 
 namespace LightBlueFox.Connect.CustomProtocol.Serialization
 {
@@ -11,12 +7,10 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
     {
         public readonly bool IsFixedSize;
         public readonly int? FixedSize;
-        public readonly Type Type;
-        
 
-        public SerializationAttribute(int? fixedSize, Type t)
+        public SerializationAttribute(int? fixedSize)
         {
-            IsFixedSize = fixedSize != null; FixedSize = fixedSize; Type = t;
+            IsFixedSize = fixedSize != null; FixedSize = fixedSize;
         }
 
     }
@@ -25,26 +19,34 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
     {
         public readonly bool IsSerializer;
 
-        public SerializationMethodAttribute(int? fixedSize, Type t, bool isSerializer) : base (fixedSize, t) 
+        public SerializationMethodAttribute(int? fixedSize, bool isSerializer) : base(fixedSize)
         {
-           IsSerializer = isSerializer;
+            IsSerializer = isSerializer;
+        }
+
+        public static void CheckValid(MethodInfo m, bool isSerializer)
+        {
+            if (!m.IsStatic || m.GetParameters().Length != 1 || m.ReturnType == typeof(void)) throw new ArgumentException("All (de)serializers need to be static & take 1 arg & have a non-void return type.");
+            if (isSerializer && m.ReturnType != typeof(byte[])) throw new ArgumentException("Invalid since return type of serializers needs to be byte.");
+            if (!isSerializer && m.GetParameters()[0].ParameterType != typeof(ReadOnlyMemory<byte>)) throw new ArgumentException("Invalid since first parameter needs to be of type ReadOnlyMemory<byte>.");
+        }
+
+        public Type CheckSerializerType(MethodInfo m)
+        {
+            CheckValid(m, IsSerializer);
+            return IsSerializer ? m.GetParameters()[0].ParameterType : m.ReturnType;
         }
     }
 
-    public abstract class AtomicSerializationAttribute<T> : SerializationMethodAttribute
-    {
-        public AtomicSerializationAttribute(int? fixedSize, bool isSerializer) : base(fixedSize, typeof(T), isSerializer) { }
-    }
-
     [AttributeUsage(AttributeTargets.Method)]
-    public class AtomicSerializerAttribute<T> : AtomicSerializationAttribute<T>
+    public class AtomicSerializerAttribute : SerializationMethodAttribute
     {
-        public AtomicSerializerAttribute(): base(null, true) { }
+        public AtomicSerializerAttribute() : base(null, true) { }
         public AtomicSerializerAttribute(int fixedSize) : base(fixedSize, true) { }
     }
 
     [AttributeUsage(AttributeTargets.Method)]
-    public class AtomicDeserializerAttribute<T> : AtomicSerializationAttribute<T>
+    public class AtomicDeserializerAttribute : SerializationMethodAttribute
     {
         public AtomicDeserializerAttribute() : base(null, false) { }
         public AtomicDeserializerAttribute(int fixedSize) : base(fixedSize, false) { }

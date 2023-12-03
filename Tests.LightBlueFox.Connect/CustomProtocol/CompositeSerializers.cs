@@ -120,7 +120,7 @@ namespace Tests.LightBlueFox.Connect.CustomProtocol
 
         
 
-        [CompositeSerialize<TestStruct>]
+        [CompositeSerialize]
         private struct TestStruct : IEquatable<TestStruct>
         {
             public int fixedSize = 3;
@@ -139,7 +139,7 @@ namespace Tests.LightBlueFox.Connect.CustomProtocol
             }
         }
 
-        [CompositeSerialize<TestClass>]
+        [CompositeSerialize]
         private class TestClass : IEquatable<TestClass>
         {
             int fixedSize = 3;
@@ -174,7 +174,7 @@ namespace Tests.LightBlueFox.Connect.CustomProtocol
         }
 
 
-        [CompositeSerialize<DependantClass>]
+        [CompositeSerialize]
         private class DependantClass : IEquatable<DependantClass>
         {
             TestStruct dependency;
@@ -192,26 +192,26 @@ namespace Tests.LightBlueFox.Connect.CustomProtocol
             }
         }
 
-        [CompositeSerialize<Cyclic1>]
+        [CompositeSerialize]
         private class Cyclic1
         {
             Cyclic2 dependency;
         }
 
-        [CompositeSerialize<Cyclic2>]
+        [CompositeSerialize]
         private class Cyclic2
         {
             Cyclic1 dependency;
         }
 
-        [CompositeSerialize<TestNull1>]
+        [CompositeSerialize]
         private struct TestNull1
         {
             string neverSet;
             int neverSet2;
         }
 
-        [CompositeSerialize<HasNullable>]
+        [CompositeSerialize]
         private class HasNullable
         {
             string? nullableString;

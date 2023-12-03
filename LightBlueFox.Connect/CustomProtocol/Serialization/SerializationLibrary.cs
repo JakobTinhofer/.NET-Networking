@@ -106,20 +106,23 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
                         
                         if (compAttr != null)
                         {
-                            if (compAttr.Type != nt) throw new ArgumentException("Serializer Attribute not applied on correct type!");
                             compositeTypes.Add(nt);
                         }
 
                         foreach (var m in t.GetMethods())
                         {
                             var attr = m.GetCustomAttribute<SerializationMethodAttribute>();
-
+                            
                             if (!(m.IsStatic && attr != null)) { continue; }
+
+                            Type serType = attr.CheckSerializerType(m);
                             Dictionary<Type, (SerializationAttribute, MethodInfo)> dict = attr.IsSerializer ? serializers : deserializers;
 
-                            if (SavedSerialization.ContainsKey(attr.Type)) throw new NotImplementedException("Multiple serializers for one type not implemented.");
-                            if (dict.ContainsKey(attr.Type)) throw new NotImplementedException("Multiple serializers for one type not implemented.");
-                            dict.Add(attr.Type, (attr, m));
+
+
+                            if (SavedSerialization.ContainsKey(serType)) throw new NotImplementedException("Multiple serializers for one type not implemented.");
+                            if (dict.ContainsKey(serType)) throw new NotImplementedException("Multiple serializers for one type not implemented.");
+                            dict.Add(serType, (attr, m));
                         }
 
                         nextNestedTypes.AddRange(nt.GetNestedTypes());
@@ -133,7 +136,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             {
                 if (!deserializers.ContainsKey(t)) throw new ArgumentException("Can only add serializers and deserializers in pairs!");
                 if (serializers[t].Item1.FixedSize != deserializers[t].Item1.FixedSize) throw new ArgumentException("Conflicting size instructions!");
-                SavedSerialization.Add(t, SerializationLibraryEntry.CreateEntry(deserializers[t].Item1, serializers[t].Item2, deserializers[t].Item2));
+                SavedSerialization.Add(t, SerializationLibraryEntry.CreateEntry(deserializers[t].Item1, t, serializers[t].Item2, deserializers[t].Item2));
             }
 
             if(compositeTypes.Count > 0) AddCompositeSerializers(compositeTypes.ToArray());

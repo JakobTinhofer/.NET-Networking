@@ -10,13 +10,13 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
 {
     public static class DefaultSerializers
     {
-        [AtomicDeserializer<int>(sizeof(int))]
+        [AtomicDeserializer(sizeof(int))]
         public static int Int32_Deserialize(ReadOnlyMemory<byte> data)
         {
             if (data.Length != 4) throw new ArgumentException("Parsing an int32 requires exactly 4 bytes!");
             return BinaryPrimitives.ReadInt32LittleEndian(data.Span);
         }
-        [AtomicSerializer<int>(sizeof(int))]
+        [AtomicSerializer(sizeof(int))]
         public static byte[] Int32_Serialize(int nr)
         {
             byte[] buff = new byte[sizeof(int)];
@@ -24,13 +24,13 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             return buff;
         }
 
-        [AtomicDeserializer<uint>(sizeof(uint))]
+        [AtomicDeserializer(sizeof(uint))]
         public static uint UInt32_Deserialize(ReadOnlyMemory<byte> data)
         {
             if (data.Length != 4) throw new ArgumentException("Parsing an uint32 requires exactly 4 bytes!");
             return BinaryPrimitives.ReadUInt32LittleEndian(data.Span);
         }
-        [AtomicSerializer<uint>(sizeof(uint))]
+        [AtomicSerializer(sizeof(uint))]
         public static byte[] UInt32_Serialize(uint nr)
         {
             byte[] buff = new byte[sizeof(int)];
@@ -38,18 +38,18 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             return buff;
         }
 
-        [AtomicDeserializer<byte>(sizeof(byte))]
+        [AtomicDeserializer(sizeof(byte))]
         public static byte Byte_Deserialize(ReadOnlyMemory<byte> data) => data.Span[0];
-        [AtomicSerializer<byte>(sizeof(byte))]
+        [AtomicSerializer(sizeof(byte))]
         public static byte[] Byte_Serialize(byte b) => new byte[1] { b };
 
-        [AtomicDeserializer<long>(sizeof(long))]
+        [AtomicDeserializer(sizeof(long))]
         public static long Int64_Deserialize(ReadOnlyMemory<byte> data)
         {
             if (data.Length != sizeof(long)) throw new ArgumentException("Parsing an int32 requires exactly 4 bytes!");
             return BinaryPrimitives.ReadInt64LittleEndian(data.Span);
         }
-        [AtomicSerializer<long>(sizeof(long))]
+        [AtomicSerializer(sizeof(long))]
         public static byte[] Int64_Serialize(long nr)
         {
             byte[] buff = new byte[sizeof(long)];
@@ -57,13 +57,13 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             return buff;
         }
 
-        [AtomicDeserializer<ulong>(sizeof(ulong))]
+        [AtomicDeserializer(sizeof(ulong))]
         public static ulong UInt64_Deserialize(ReadOnlyMemory<byte> data)
         {
             if (data.Length != sizeof(ulong)) throw new ArgumentException("Parsing an int32 requires exactly 4 bytes!");
             return BinaryPrimitives.ReadUInt64LittleEndian(data.Span);
         }
-        [AtomicSerializer<ulong>(sizeof(ulong))]
+        [AtomicSerializer(sizeof(ulong))]
         public static byte[] UInt64_Serialize(ulong nr)
         {
             byte[] buff = new byte[sizeof(ulong)];
@@ -71,27 +71,27 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             return buff;
         }
 
-        [AtomicDeserializer<string>]
+        [AtomicDeserializer]
         public static string Default_String_Deserialize(ReadOnlyMemory<byte> data)
         {
             return Encoding.UTF8.GetString(data.Span);
         }
-        [AtomicSerializer<string>]
+        [AtomicSerializer]
         public static byte[] Default_String_Serialize(string s)
         {
             return Encoding.UTF8.GetBytes(s);
         }
 
-        [AtomicDeserializer<bool>(1)]
+        [AtomicDeserializer(1)]
         public static bool Bool_Deserialize(ReadOnlyMemory<byte> data)
         {
             return data.Span[0] != 0;
         }
-        [AtomicSerializer<bool>(1)]
+        [AtomicSerializer(1)]
         public static byte[] Bool_Serialize(bool b) => new byte[1] { (byte) (b ?  1 : 0) };
 
         
-        [AtomicDeserializer<DateTime>(sizeof(ulong) + sizeof(byte))]
+        [AtomicDeserializer(sizeof(ulong) + sizeof(byte))]
         public static DateTime DateTime_Deserialize(ReadOnlyMemory<byte> data)
         {
             ulong ticks = UInt64_Deserialize(data.Slice(0,4));
@@ -101,7 +101,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             throw new NotImplementedException();
         }
 
-        [AtomicSerializer<DateTime>(sizeof(ulong) + sizeof(byte))]
+        [AtomicSerializer(sizeof(ulong) + sizeof(byte))]
         public static byte[] DateTime_Deserialize(DateTime t)
         {
             throw new NotImplementedException();

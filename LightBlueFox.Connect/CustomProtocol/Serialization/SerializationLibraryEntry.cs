@@ -27,13 +27,13 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             Type = type;
         }
 
-        public static SerializationLibraryEntry CreateEntry(SerializationAttribute attr, MethodInfo serializer, MethodInfo deserializer)
+        public static SerializationLibraryEntry CreateEntry(SerializationAttribute attr, Type t, MethodInfo serializer, MethodInfo deserializer)
         {
             if (!serializer.IsStatic || !deserializer.IsStatic) throw new ArgumentException("Serializer and Deserializer need to be static!");
 
-            Type tSer = typeof(SerializerDelegate<>).MakeGenericType(attr.Type);
-            Type tDes = typeof(DeserializerDelegate<>).MakeGenericType(attr.Type);
-            Type entryType = typeof(SerializationLibraryEntry<>).MakeGenericType(attr.Type);
+            Type tSer = typeof(SerializerDelegate<>).MakeGenericType(t);
+            Type tDes = typeof(DeserializerDelegate<>).MakeGenericType(t);
+            Type entryType = typeof(SerializationLibraryEntry<>).MakeGenericType(t);
 
             return entryType.GetConstructor(new Type[3] { typeof(int?), tSer, tDes })?.Invoke(new object?[3] { attr.FixedSize, serializer.CreateDelegate(tSer), deserializer.CreateDelegate(tDes) }) as SerializationLibraryEntry ?? throw new InvalidOperationException("Somehow null in creating entry");
         }
