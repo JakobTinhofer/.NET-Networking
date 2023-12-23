@@ -66,8 +66,6 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
                 if (!tDict.ContainsKey(hType)) throw new InvalidOperationException("Could not find Message of type " + hType + ". Please include enclosing type(s).");
                 
                 var entr = tDict[hType];
-                if (entr.GetType().IsAssignableTo(typeof(AnswerableMessageAttribute))) throw new NotImplementedException("Answerable messages not yet supported.");
-
                 var delType = typeof(ProtocolMessageHandler<>).MakeGenericType(hType);
                 var indx = (byte)dictOrdered.IndexOf(hType);
                 MessageDefinitions.Add(indx, new MessageDefinition(hType, entr, h.method.CreateDelegate(delType), indx));
@@ -86,14 +84,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
         internal void MessageHandler(ReadOnlyMemory<byte> data, MessageArgs args, ProtocolConnection conn)
         {
             if (data.Length == 0) return;
-
-            if (!MessageDefinitions.ContainsKey(data.Span[0])) {
-                //SendMessage<ErrorMessage>(new ErrorMessage()
-                //{
-                //    Type = RemoteErrorType.UnknownMessageType,
-                //    Message = "No message type under id " + (int)data.Span[0] + " known"
-                //}, conn);
-            }
+            if (!MessageDefinitions.ContainsKey(data.Span[0])) { return; }
 
             MessageDefinition msg = MessageDefinitions[data.Span[0]];
             object message = Serializations.Deserialize(data.Slice(1), msg.MessageType);
@@ -103,9 +94,6 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
         {
             if (!MessageDefinitionsByType.ContainsKey(typeof(T))) throw new ArgumentException("" + typeof(T) + " is not a known message type.");
             var mEntry = MessageDefinitionsByType[typeof(T)];
-
-            if (mEntry.AnswerType != null) throw new NotImplementedException("Message answers/exceptions are not implemented at the moment.");
-
             using (MemoryStream ms = new MemoryStream())
             {
                 ms.WriteByte(mEntry.ID);

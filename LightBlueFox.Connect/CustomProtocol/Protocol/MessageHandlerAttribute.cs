@@ -24,10 +24,6 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
             var paramType = param[0].ParameterType;
             var attrs = paramType.GetCustomAttributes<MessageAttribute>();
             if (attrs.Count() != 1) throw new ArgumentException("First parameter needs to have exactly one MessageAttribute!");
-            var attr = attrs.First();
-            if (attr.GetType().IsAssignableTo(typeof(AnswerableMessageAttribute))
-                && m.ReturnType != (attr as AnswerableMessageAttribute)?.AnswerType) 
-                throw new ArgumentException("MessageType is answerable, handler needs return type of type " + (attr as AnswerableMessageAttribute)?.AnswerType);
             return paramType;
         }
 

@@ -13,17 +13,11 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
         public readonly TypeID MessageTypeID;
         public readonly string Name;
         public readonly Delegate Handler;
-        public readonly Type? AnswerType;
-        public bool RequiresAnswer
-        {
-            get => AnswerType != null;
-        }
         public readonly bool AllowExceptions;
         public readonly Byte ID;
         
         public MessageDefinition(Type MessageType, MessageAttribute attribute, Delegate handler, Byte id)
         {
-            AnswerType = (attribute as AnswerableMessageAttribute)?.AnswerType;
             AllowExceptions = attribute.HandlesExceptions;
             Name = MessageType.Name;
             Handler = handler;

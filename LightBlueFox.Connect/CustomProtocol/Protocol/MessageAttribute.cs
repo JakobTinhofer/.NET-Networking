@@ -12,19 +12,4 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
             HandlesExceptions = handlesExceptions;
         }
     }
-
-    public abstract class AnswerableMessageAttribute : MessageAttribute
-    {
-        public readonly Type AnswerType;
-
-        protected AnswerableMessageAttribute(Type ansType) : base(true)
-        {
-            AnswerType = ansType;
-        }
-    }
-
-    public class MessageAttribute<T> : AnswerableMessageAttribute
-    {
-        public MessageAttribute() : base(typeof(T)) { }
-    }
 }
