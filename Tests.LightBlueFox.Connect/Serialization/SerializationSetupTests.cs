@@ -3,7 +3,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Linq;
 
-namespace Tests.LightBlueFox.Connect.CustomProtocol
+namespace Tests.LightBlueFox.Connect.Serialization
 {
     [TestClass]
     public class SerializationSetupTests
@@ -29,11 +29,16 @@ namespace Tests.LightBlueFox.Connect.CustomProtocol
             data = l.Serialize(123456789990);
             Assert.IsTrue(l.Deserialize<long>(data) == 123456789990);
 
+            data = l.Serialize(System.ConsoleColor.Red);
+            Assert.IsTrue(l.Deserialize<ConsoleColor>(data) == ConsoleColor.Red);
+
             Assert.ThrowsException<SerializationEntryNotFoundException>(() =>
             {
-                data = l.Serialize(12.4);
+                data = l.Serialize(new UnknownType());
             });
         }
 
+
+        public class UnknownType { }
     }
 }

@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Tests.LightBlueFox.Connect.CustomProtocol
+namespace Tests.LightBlueFox.Connect.Serialization
 {
     [TestClass]
     public class ArraySerializers
