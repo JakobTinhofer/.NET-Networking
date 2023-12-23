@@ -151,9 +151,9 @@ namespace LightBlueFox.Connect.Structure
         #endregion
 
         #region Message Handling
-        private void NegotiationMessageHandler(ReadOnlySpan<byte> message, MessageArgs args)
+        private void NegotiationMessageHandler(ReadOnlyMemory<byte> message, MessageArgs args)
         {
-            NegotiationMessages mType = ((NegotiationMessages)message[0]);
+            NegotiationMessages mType = ((NegotiationMessages)message.Span[0]);
             bool unexpected = mType != expectedMessage;
             var v = validatorQueue.Count == 0 ? null : validatorQueue.Dequeue();
 
@@ -161,19 +161,19 @@ namespace LightBlueFox.Connect.Structure
             {
                 case NegotiationMessages.VerificationAborted:
                     ValidationFailure f = ValidationFailure.Unknown;
-                    if (message.Length > 2) f = (ValidationFailure)message[1];
+                    if (message.Length > 2) f = (ValidationFailure)message.Span[1];
                     FailNegotiation(new(f), false);
                     HasFailed = true;
                     return;
                 case NegotiationMessages.Challenge:
                     if (v == null) FailNegotiation(new(ValidationFailure.TooManyValidators));
                     else if (unexpected) FailNegotiation(new(ValidationFailure.InvalidOrder));
-                    else if (!v.ValidateChallenge(message[1..])) FailNegotiation(new(ValidationFailure.InvalidChallenge)); 
+                    else if (!v.ValidateChallenge(message.Span[1..])) FailNegotiation(new(ValidationFailure.InvalidChallenge)); 
                     else { WriteNegotiationMsg(NegotiationMessages.Answer, v.GetAnswerBytes()); expectedMessage = validatorQueue.Count == 0 ? NegotiationMessages.Success : NegotiationMessages.Challenge; }
                     return;
                 case NegotiationMessages.Answer:
                     if (unexpected || v == null) FailNegotiation(new(ValidationFailure.InvalidOrder));
-                    else if (!v.ValidateAnswer(message[1..])) FailNegotiation(new(ValidationFailure.WrongAnswer));
+                    else if (!v.ValidateAnswer(message.Span[1..])) FailNegotiation(new(ValidationFailure.WrongAnswer));
                     else if (validatorQueue.Count == 0) { WriteNegotiationMsg(NegotiationMessages.Success); expectedMessage = NegotiationMessages.Success;  }
                     else WriteNegotiationMsg(NegotiationMessages.Challenge, validatorQueue.Peek().GetChallengeBytes());
                     return;

@@ -36,14 +36,14 @@ namespace Tests.LightBlueFox.Connect.Structure
                 {
                     MessageHandler = (b, a) =>
                     {
-                        serverMessageMatches.SetResult(b.Length == 1 && b[0] == 123);
+                        serverMessageMatches.SetResult(b.Length == 1 && b.Span[0] == 123);
                         a.Sender.WriteMessage(new byte[1] { 222 });
                     }
                 };
                 Debug.WriteLine("Time passed: " + (DateTime.UtcNow - t).ToString(@"ss\.ff"));
                 myClientConnection = ConnectionNegotiation.ValidateConnection(new TcpConnection("localhost", 12321), ConnectionNegotiationPosition.Challenger, new NameValidator("test123"));
                 myClientConnection.MessageHandler = (b, a) => {
-                    clientMessageMatches.SetResult(b.Length == 1 && b[0] == 222);
+                    clientMessageMatches.SetResult(b.Length == 1 && b.Span[0] == 222);
                 };
 
 #pragma warning disable IDE0230 // Use UTF-8 string literal
@@ -100,7 +100,7 @@ namespace Tests.LightBlueFox.Connect.Structure
 
             s.MessageHandler = (m, args) =>
             {
-                if (m.SequenceEqual(reverseMessageBytes)) serverPcktsReceived++;
+                if (m.Span.SequenceEqual(reverseMessageBytes)) serverPcktsReceived++;
                 else throw new Exception("Received invalid data from client!");
                 if (serverPcktsReceived == clientPcktsExpected * clientsExpected && clientPcktsReceived == serverPcktsExpected * clientsExpected && !finishedAllClientMessages.Task.IsCompleted) finishedAllClientMessages.SetResult();
                 Debug.WriteLine(DateTime.Now.ToString("mm:ss:fffff") + "[SERVER HANDLER] received packet. CPR: {0}, CPS: {1}, SPR: {2}, SPS: {3}, CC: {4}, CD: {5}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);
@@ -126,7 +126,7 @@ namespace Tests.LightBlueFox.Connect.Structure
                     conns.Add(c);
                     c.MessageHandler = (m, args) =>
                     {
-                        if (m.SequenceEqual(messageBytes)) clientPcktsReceived++;
+                        if (m.Span.SequenceEqual(messageBytes)) clientPcktsReceived++;
                         else throw new Exception("Received invalid data from server!");
                         if (serverPcktsReceived == clientPcktsExpected * clientsExpected && clientPcktsReceived == serverPcktsExpected * clientsExpected && !finishedAllClientMessages.Task.IsCompleted) finishedAllClientMessages.SetResult();
                         Debug.WriteLine(DateTime.Now.ToString("mm:ss:fffff") + " [CLIENT HANDLER] received packet. CPR: {0}, CPS: {1}, SPR: {2}, SPS: {3}, CC: {4}, CD: {5}", clientPcktsReceived, clientPcktsSent, serverPcktsReceived, serverPcktsSent, clientsConnected, clientsDisconnected);

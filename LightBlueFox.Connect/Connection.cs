@@ -83,7 +83,7 @@ namespace LightBlueFox.Connect
         protected void MessageReceived(ReadOnlyMemory<byte> message, MessageArgs meta, MessageReleasedHandler? finished)
         {
             if (MessageHandler == null || KeepMessagesInOrder) ReadQueue.Add(new(message, meta, finished));
-            else Task.Run(() => { MessageHandler.Invoke(message.Span, new(this)); finished?.Invoke(message, this); });
+            else Task.Run(() => { MessageHandler.Invoke(message, new(this)); finished?.Invoke(message, this); });
         }
         #endregion
 
@@ -97,7 +97,7 @@ namespace LightBlueFox.Connect
         {
             var callHandler = () =>
             {
-                MessageHandler?.Invoke(msg.Buffer.Span, new(this));
+                MessageHandler?.Invoke(msg.Buffer, new(this));
                 msg.FinishedHandling?.Invoke(msg.Buffer, this);
             };
 
@@ -153,7 +153,7 @@ namespace LightBlueFox.Connect
     /// </summary>
     /// <param name="sender">The connection which received the packet.</param>
     /// <param name="msg">The raw data that was received.</param>
-    public delegate void MessageHandler(ReadOnlySpan<byte> msg, MessageArgs args);
+    public delegate void MessageHandler(ReadOnlyMemory<byte> msg, MessageArgs args);
 
     /// <summary>
     /// Describes methods which can be used to listen to the <see cref="Connection.ConnectionDisconnected"/> event.
