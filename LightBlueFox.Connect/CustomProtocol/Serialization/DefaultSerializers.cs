@@ -10,6 +10,37 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
 {
     public static class DefaultSerializers
     {
+        [AtomicDeserializer(sizeof(float))]
+        public static float Float_Deserialize(ReadOnlyMemory<byte> buffer)
+        {
+            if (buffer.Length != sizeof(float)) throw new ArgumentException("Parsing a float requires exactly " +  sizeof(float) + " bytes.");
+            return BinaryPrimitives.ReadSingleLittleEndian(buffer.Span);
+        }
+
+        [AtomicSerializer(sizeof(float))]
+        public static byte[] Float_Serialize(float f)
+        {
+            byte[] buff = new byte[sizeof(float)];
+            BinaryPrimitives.WriteSingleLittleEndian(buff, f);
+            return buff;
+        }
+
+        [AtomicDeserializer(sizeof(double))]
+        public static double Double_Deserialize(ReadOnlyMemory<byte> buffer)
+        {
+            if (buffer.Length != sizeof(double)) throw new ArgumentException("Parsing a float requires exactly " + sizeof(float) + " bytes.");
+            return BinaryPrimitives.ReadDoubleLittleEndian(buffer.Span);
+        }
+
+        [AtomicSerializer(sizeof(double))]
+        public static byte[] Double_Serialize(double f)
+        {
+            byte[] buff = new byte[sizeof(double)];
+            BinaryPrimitives.WriteDoubleLittleEndian(buff, f);
+            return buff;
+        }
+
+
         [AtomicDeserializer(sizeof(int))]
         public static int Int32_Deserialize(ReadOnlyMemory<byte> data)
         {

@@ -5,6 +5,8 @@ using System.Reflection.Emit;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers;
+using LightBlueFox.Connect.CustomProtocol.Serialization;
 
 namespace LightBlueFox.Connect.Util
 {
@@ -44,5 +46,41 @@ namespace LightBlueFox.Connect.Util
             //il.Emit(OpCodes.Pop);
             il.Emit(OpCodes.Call, typeof(Console).GetMethod("WriteLine", new[] { typeof(int) }));
         }
+
+        public static void ForEachMember(Type[] types, Action<MethodInfo, Type>? methodAction = null, Action<Type>? typeAction = null, Action<FieldInfo, Type>? fieldAction = null)
+        {
+            foreach (var t in types)
+            {
+                List<Type> nestedTypes = new() { t };
+                List<Type> nextNestedTypes = new();
+                while (nestedTypes.Count > 0)
+                {
+                    foreach (var nt in nestedTypes)
+                    {
+                        if (typeAction != null) typeAction(nt);
+                        
+
+                        if (methodAction != null) 
+                            foreach (var m in nt.GetMethods())
+                            {
+                                methodAction(m, t);
+                            }
+
+                        if (fieldAction != null)
+                            foreach (var m in nt.GetFields())
+                            {
+                                fieldAction(m, t);
+                            }
+
+                        nextNestedTypes.AddRange(nt.GetNestedTypes());
+                    }
+                    nestedTypes = nextNestedTypes;
+                    nextNestedTypes = new();
+                }
+            }
+        }
+
+
+        
     }
 }
