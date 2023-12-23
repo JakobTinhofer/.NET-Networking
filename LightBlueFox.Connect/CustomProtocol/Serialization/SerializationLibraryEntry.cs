@@ -19,12 +19,16 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
 
         public readonly Type Type;
 
+        public readonly TypeID TypeID;
+
         public abstract Delegate SerializerPointer { get; }
         public abstract Delegate DeserializerPointer { get; }
+        
         public SerializationLibraryEntry(int? fixedSize, Type type)
         {
             FixedSize = fixedSize;
             Type = type;
+            TypeID = new TypeID(type);
         }
 
         public static SerializationLibraryEntry CreateEntry(SerializationAttribute attr, Type t, MethodInfo serializer, MethodInfo deserializer)
@@ -45,6 +49,12 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
                 .GetConstructor(new Type[1]{ typeof(SerializationLibraryEntry<>).MakeGenericType(baseType.Type) })
                 ?.Invoke(new object[1] {baseType})
                 as SerializationLibraryEntry ?? throw new("Could not create Array entry");
+        }
+    
+        public static SerializationLibraryEntry CreateEnumEntry(Type t, BaseSerializationLibrary l)
+        {
+            if (!t.IsEnum) throw new ArgumentException("T needs to be an enum");
+            return (SerializationLibraryEntry)((typeof(EnumSerializationEntry<>).MakeGenericType(t)).GetConstructor(new Type[1] { typeof(SerializationLibrary) })?.Invoke(new[] { l }) ?? throw new NullReferenceException("Got null while creating enum serializer."));
         }
     }
 
