@@ -2,14 +2,14 @@
 
 namespace LightBlueFox.Connect.CustomProtocol.Protocol
 {
+
+    
     [AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class)]
     public class MessageAttribute : CompositeSerializeAttribute
     {
-        public readonly bool HandlesExceptions;
-
-        public MessageAttribute(bool handlesExceptions = false)
+        
+        public MessageAttribute()
         {
-            HandlesExceptions = handlesExceptions;
         }
     }
 }
