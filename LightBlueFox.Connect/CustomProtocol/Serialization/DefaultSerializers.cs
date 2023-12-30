@@ -1,19 +1,17 @@
-﻿using System;
-using System.Buffers.Binary;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
+﻿using System.Buffers.Binary;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace LightBlueFox.Connect.CustomProtocol.Serialization
 {
+    /// <summary>
+    /// A collection of serializers for primitives and common values that are added by default to every new <see cref="SerializationLibrary"/>.
+    /// </summary>
     public static class DefaultSerializers
     {
         [AtomicDeserializer(sizeof(float))]
         public static float Float_Deserialize(ReadOnlyMemory<byte> buffer)
         {
-            if (buffer.Length != sizeof(float)) throw new ArgumentException("Parsing a float requires exactly " +  sizeof(float) + " bytes.");
+            if (buffer.Length != sizeof(float)) throw new ArgumentException("Parsing a float requires exactly " + sizeof(float) + " bytes.");
             return BinaryPrimitives.ReadSingleLittleEndian(buffer.Span);
         }
 
@@ -119,13 +117,13 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             return data.Span[0] != 0;
         }
         [AtomicSerializer(1)]
-        public static byte[] Bool_Serialize(bool b) => new byte[1] { (byte) (b ?  1 : 0) };
+        public static byte[] Bool_Serialize(bool b) => new byte[1] { (byte)(b ? 1 : 0) };
 
-        
+
         [AtomicDeserializer(sizeof(ulong) + sizeof(byte))]
         public static DateTime DateTime_Deserialize(ReadOnlyMemory<byte> data)
         {
-            ulong ticks = UInt64_Deserialize(data.Slice(0,4));
+            ulong ticks = UInt64_Deserialize(data.Slice(0, 4));
             int tz = 1;
 
             // Use native serialization functionallity? 

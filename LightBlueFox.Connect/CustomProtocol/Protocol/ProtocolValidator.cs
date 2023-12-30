@@ -1,19 +1,15 @@
-﻿using LightBlueFox.Connect.CustomProtocol.Serialization;
-using LightBlueFox.Connect.Structure.Validators;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using LightBlueFox.Connect.Structure.Validators;
 
 namespace LightBlueFox.Connect.CustomProtocol.Protocol
 {
+    /// <summary>
+    /// Checks whether two remotely connected <see cref="ProtocolDefinition"/>s are compatible.
+    /// </summary>
     public class ProtocolValidator : ConnectionValidator
     {
         private readonly byte[] MessageDefinitionHash;
 
         public override byte[] GetAnswerBytes() => MessageDefinitionHash.Reverse().ToArray();
-        
 
         public override byte[] GetChallengeBytes() => MessageDefinitionHash;
 
@@ -27,14 +23,17 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
             return challenge.SequenceEqual(MessageDefinitionHash);
         }
 
+        /// <summary>
+        /// Creates a new validator from a complete list of all defined messages.
+        /// </summary>
+        /// <param name="definitions">A complete list of all defined messages for the <see cref="ProtocolDefinition"/>.</param>
+        /// <exception cref="InvalidOperationException">Collection of message definitions may not be empty.</exception>
         public ProtocolValidator(MessageDefinition[] definitions)
         {
             var sorted = definitions.OrderBy((m) => m.ID);
-
-
             if (definitions.Length == 0) throw new InvalidOperationException("ProtocolDefinition without messages is meaningless.");
 
-            using(MemoryStream ms = new MemoryStream())
+            using (MemoryStream ms = new MemoryStream())
             {
                 foreach (var def in sorted)
                 {

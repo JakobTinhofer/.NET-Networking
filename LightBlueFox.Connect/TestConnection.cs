@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace LightBlueFox.Connect
+﻿namespace LightBlueFox.Connect
 {
+    /// <summary>
+    /// A simple connection created in pairs that instantly transmit data from one twin to the other. Used for testing.
+    /// </summary>
     public class TestConnection : Connection
     {
         public TestConnection? Partner;
@@ -19,14 +16,15 @@ namespace LightBlueFox.Connect
             return (c1, c2);
         }
 
-        public override void CloseConnection(){}
+        public override void CloseConnection() { }
 
         public override void WriteMessage(ReadOnlyMemory<byte> Packet)
         {
             if (Partner != null) Partner.recMsg(Packet);
         }
 
-        private void recMsg(ReadOnlyMemory<byte> data) {
+        private void recMsg(ReadOnlyMemory<byte> data)
+        {
             MessageReceived(data, new Util.MessageArgs(this), null);
         }
     }

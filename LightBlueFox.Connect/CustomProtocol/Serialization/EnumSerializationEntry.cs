@@ -1,15 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Runtime.CompilerServices;
 
 namespace LightBlueFox.Connect.CustomProtocol.Serialization
 {
+    /// <summary>
+    /// Allows for the serialization of enums as their underlying numeric type.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class EnumSerializationEntry<T> : SerializationLibraryEntry<T> where T : Enum
     {
-        private static DeserializerDelegate<T> BuildDeserialize(BaseSerializationLibrary l)
+        private static DeserializerDelegate<T> BuildDeserialize(SerializationLibrary l)
         {
             var enumType = typeof(T).GetEnumUnderlyingType();
             return (mem) =>
@@ -18,7 +17,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             };
         }
 
-        private static SerializerDelegate<T> BuildSerialize(BaseSerializationLibrary l)
+        private static SerializerDelegate<T> BuildSerialize(SerializationLibrary l)
         {
             var enumType = typeof(T).GetEnumUnderlyingType();
             return (e) =>
@@ -27,6 +26,10 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             };
         }
 
-        public EnumSerializationEntry(BaseSerializationLibrary sl) : base(Unsafe.SizeOf<T>(), (BuildSerialize(sl), BuildDeserialize(sl))) { }
+        /// <summary>
+        /// Creates a new entry for <typeparamref name="T"/>.
+        /// </summary>
+        /// <param name="sl">A serialization library to look up the serializers for the underyling numeric type.</param>
+        public EnumSerializationEntry(SerializationLibrary sl) : base(Unsafe.SizeOf<T>(), (BuildSerialize(sl), BuildDeserialize(sl))) { }
     }
 }

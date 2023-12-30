@@ -1,42 +1,48 @@
 ﻿using LightBlueFox.Connect.Util;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Reflection;
 using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace LightBlueFox.Connect.CustomProtocol.Serialization
 {
-    internal class ArraySerializationLibraryEntry<T> : SerializationLibraryEntry<T[]>
+    /// <summary>
+    /// Creates a dynamic entry for a certain array type that can then be cached and reused.
+    /// </summary>
+    /// <typeparam name="T">Anything that can be put into an array.</typeparam>
+    public class ArraySerializationLibraryEntry<T> : SerializationLibraryEntry<T[]>
     {
+        /// <summary>
+        /// Generates the dynamic serializer for type <typeparamref name="T"/>[]
+        /// </summary>
+        /// <param name="baseEntry">The entry for the type <typeparamref name="T"/></param>
+        /// <returns>A new serializer method.</returns>
         public static SerializerDelegate<T[]> GenerateArraySerializer(SerializationLibraryEntry baseEntry)
         {
-            var uintSer = typeof(DefaultSerializers).GetMethod("UInt32_Serialize", new Type[1] { typeof(uint) }) ?? throw new InvalidOperationException("Could not find uint converter...");
+            // PREP: Common methods.
+            var uintSer = typeof(DefaultSerializers).GetMethod("UInt32_Serialize", new Type[1] { typeof(uint) }) ?? throw new Exception("Could not find uint converter...");
             var arrConv = typeof(ReadOnlySpan<byte>).GetMethod("op_Implicit", new Type[1] { typeof(byte[]) }) ?? throw new Exception("Failed to get operator");
             var msWrite = typeof(MemoryStream).GetMethod("Write", new Type[1] { typeof(ReadOnlySpan<byte>) }) ?? throw new Exception("Failed to get Write");
             var delType = typeof(SerializerDelegate<T>);
             var delInvoke = delType.GetMethod("Invoke") ?? throw new Exception("Failed to get del invoke");
 
+
             DynamicMethod m = new DynamicMethod("EMITD_arrayser_" + typeof(T), typeof(byte[]), new Type[2] { typeof(T[]), typeof(Delegate) }, true);
             var il = m.GetILGenerator();
+
+            #region [CIL] EMITD_arrayser_<T>
             var stream = il.DeclareLocal(typeof(MemoryStream));
             var buffer = baseEntry.IsFixedSize ? null : il.DeclareLocal(typeof(byte[]));
             var len = il.DeclareLocal(typeof(int));
             var i = il.DeclareLocal(typeof(int));
+            
             var loopCondition = il.DefineLabel();
             var loopIterator = il.DefineLabel();
             var loopBody = il.DefineLabel();
 
+            il.Emit(OpCodes.Newobj,
+                typeof(MemoryStream).GetConstructor(new Type[0])
+                ?? throw new InvalidOperationException("Could not get MemoryStream constructor..."));
+            il.Emit(OpCodes.Stloc, stream); // MemoryStream ms = new MemoryStream()
 
-            il.Emit(OpCodes.Newobj, typeof(MemoryStream).GetConstructor(new Type[0]) ?? throw new InvalidOperationException("Could not get MemoryStream constructor...")); // MemoryStream m = new MemoryStream()
-            il.Emit(OpCodes.Stloc, stream);
-
-            #region Length Prefix
-
+            
             // Get the length of the array
             il.Emit(OpCodes.Ldloc, stream);
             il.Emit(OpCodes.Ldarg_0);
@@ -55,7 +61,6 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
 
             il.Emit(OpCodes.Br_S, loopCondition);
 
-            #endregion
 
             #region Loop Body
             il.MarkLabel(loopBody);
@@ -117,6 +122,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             il.Emit(OpCodes.Ldloc, stream);
             il.Emit(OpCodes.Callvirt, typeof(MemoryStream).GetMethod("ToArray") ?? throw new("Could not get toArray"));
             il.Emit(OpCodes.Ret);
+            #endregion
 
             var del = (Func<T[], Delegate, byte[]>)m.CreateDelegate(typeof(Func<T[], Delegate, byte[]>));
             return (ob) =>
@@ -125,15 +131,21 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             };
         }
 
+        /// <summary>
+        /// Generates the dynamic deserializer for type <typeparamref name="T"/>[]
+        /// </summary>
+        /// <param name="baseEntry">The entry for the type <typeparamref name="T"/></param>
+        /// <returns>A new deserializer method.</returns>
         public static DeserializerDelegate<T[]> GenerateArrayDeserializer(SerializationLibraryEntry baseEntry)
         {
-            ReadOnlyMemory<byte> test;
-            var uintDes = typeof(DefaultSerializers).GetMethod("UInt32_Deserialize", new Type[1] { typeof(ReadOnlyMemory<byte>)}) ?? throw new InvalidOperationException("Could not find uint converter");
+            var uintDes = typeof(DefaultSerializers).GetMethod("UInt32_Deserialize", new Type[1] { typeof(ReadOnlyMemory<byte>) }) ?? throw new InvalidOperationException("Could not find uint converter");
             var span = typeof(ReadOnlyMemory<byte>).GetProperty("Span")?.GetGetMethod() ?? throw new InvalidOperationException("Could not find span on memory!");
             var delType = typeof(DeserializerDelegate<T>);
+            
             DynamicMethod m = new DynamicMethod("EMITD_arraydeser_" + typeof(T), typeof(T[]), new Type[2] { typeof(ReadOnlyMemory<byte>), typeof(Delegate) }, true);
             var il = m.GetILGenerator();
 
+            #region [CIL] EMITD_arraydeser_<T>
             var loopBody = il.DefineLabel();
             var loopIterator = il.DefineLabel();
             var loopCondition = il.DefineLabel();
@@ -182,7 +194,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
             il.Emit(OpCodes.Ldarg_1);
             il.DoSlice(bufferIndex, readLen);
             il.Emit(OpCodes.Callvirt, delType.GetMethod("Invoke") ?? throw new("No Invoke!"));
-            
+
             il.Emit(OpCodes.Stelem, typeof(T));
 
             #endregion
@@ -204,13 +216,16 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization
 
             il.Emit(OpCodes.Ldloc, resArray);
             il.Emit(OpCodes.Ret);
+            #endregion
 
             Func<ReadOnlyMemory<byte>, Delegate, T[]> f = m.CreateDelegate<Func<ReadOnlyMemory<byte>, Delegate, T[]>>();
             return (mem) => f(mem, baseEntry.DeserializerPointer);
         }
-        
-        
 
+        /// <summary>
+        /// Creates a new entry for the type <typeparamref name="T"/>[].
+        /// </summary>
+        /// <param name="baseTypeEntry">The entry for the type <typeparamref name="T"/></param>.
         public ArraySerializationLibraryEntry(SerializationLibraryEntry baseTypeEntry) : base(fixedSize: null, GenerateArraySerializer(baseTypeEntry), GenerateArrayDeserializer(baseTypeEntry))
         {
         }

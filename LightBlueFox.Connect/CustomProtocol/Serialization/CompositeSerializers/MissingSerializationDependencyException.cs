@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
+﻿namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
 {
+    /// <summary>
+    /// Thrown when a <see cref="CompositeLibraryEntry{T}"/> needs an unknown serializer/deserializer for a certain field <see cref="Type"/>.
+    /// </summary>
     public class MissingSerializationDependencyException : Exception
     {
         public readonly Type MissingDependency;

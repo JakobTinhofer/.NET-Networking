@@ -1,16 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace LightBlueFox.Connect.CustomProtocol.Protocol
+﻿namespace LightBlueFox.Connect.CustomProtocol.Protocol
 {
+    /// <summary>
+    /// Contains additional context for a received message, such as sender Information.
+    /// </summary>
     public class MessageInfo
     {
+        /// <summary>
+        /// The <see cref="ProtocolConnection"/> this message was received from.
+        /// </summary>
         public readonly ProtocolConnection From;
-        public MessageInfo(ProtocolConnection from)
+        internal MessageInfo(ProtocolConnection from)
         {
             From = from;
         }

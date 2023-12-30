@@ -1,18 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
+﻿namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
 {
+    /// <summary>
+    /// Allows the generation of dynamic serializers for this type.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false)]
-    public class CompositeSerializeAttribute : SerializationAttribute
+    public class CompositeSerializeAttribute : Attribute
     {
-        public CompositeSerializeAttribute(int fixedSize) : base(fixedSize)
-        {
-        }
-
-        public CompositeSerializeAttribute() :base(null) { }
+        public CompositeSerializeAttribute() { }
     }
 }

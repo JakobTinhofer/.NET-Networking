@@ -1,25 +1,30 @@
 ﻿using LightBlueFox.Connect.CustomProtocol.Serialization;
 using LightBlueFox.Connect.Util;
-using System;
-using System.Collections.Concurrent;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 
 namespace LightBlueFox.Connect.CustomProtocol.Protocol
 {
-    public delegate void HandleMessageAnswer<T>(T ans);
-    public delegate void HandleCustomError(Exception ex);
-
+    /// <summary>
+    /// Defines the protocol standard, providing a list of messages and their identifiers.
+    /// </summary>
     public class ProtocolDefinition
     {
         private readonly SerializationLibrary Serializations;
-
-        private readonly IReadOnlyDictionary<Type, MessageDefinition> MessageDefinitionsByType = new Dictionary<Type,MessageDefinition>();
-        
+        private readonly IReadOnlyDictionary<Type, MessageDefinition> MessageDefinitionsByType = new Dictionary<Type, MessageDefinition>();
         private readonly Dictionary<byte, MessageDefinition> MessageDefinitions = new();
 
+        /// <summary>
+        /// Used to make sure both ends of a <see cref="ProtocolConnection"/> adhere to the same definitions.
+        /// </summary>
         public readonly ProtocolValidator Validator;
 
+        /// <summary>
+        /// Add new serializers, message types and handlers from a list of types. This method will crawl all subtypes and methods.
+        /// </summary>
+        /// <param name="types">A list of types to parse.</param>
+        /// <exception cref="NotImplementedException">Thrown when more than 255 messages are entered.</exception>
+        /// <exception cref="ArgumentException">Invalid types detected.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if message definitions have no corresponding handlers or the other way around.</exception>
         private void ReadDefinitions(params Type[] types)
 
         {
@@ -42,7 +47,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
                 {
                     tDict.Add(t, attr);
                 }
-                
+
             };
 
             Serializations.FilterForSerialization(true, tFilter, mFilter, null, types);
@@ -64,7 +69,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
                 }
 
                 if (!tDict.ContainsKey(hType)) throw new InvalidOperationException("Could not find Message of type " + hType + ". Please include enclosing type(s).");
-                
+
                 var entr = tDict[hType];
                 var delType = typeof(ProtocolMessageHandler<>).MakeGenericType(hType);
                 var indx = (byte)dictOrdered.IndexOf(hType);
@@ -74,6 +79,11 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
 
 
         }
+        /// <summary>
+        /// Create a new ProtocolDefinition from an existing SerialzationLibrary with a list of types to crawl for message definitions, handlers and additional serializers. 
+        /// </summary>
+        /// <param name="sl">The Serialization library with the information to serialize all the field types of the message types.</param>
+        /// <param name="t">A collection of types that will be crawled for message definitions/ handlers as well as additional serializers.</param>
         public ProtocolDefinition(SerializationLibrary sl, params Type[] t)
         {
             Serializations = sl;
@@ -81,6 +91,12 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
             MessageDefinitionsByType = MessageDefinitions.Values.ToDictionary<MessageDefinition, Type>((v) => v.MessageType).AsReadOnly();
             Validator = new ProtocolValidator(MessageDefinitions.Values.ToArray());
         }
+        /// <summary>
+        /// Handles raw binary messages and calls the corresponding protocol message handler.
+        /// </summary>
+        /// <param name="data">Read binary data</param>
+        /// <param name="args">context of binary message</param>
+        /// <param name="conn">ProtocolCOnnection object whose underlying connection received the message.</param>
         internal void MessageHandler(ReadOnlyMemory<byte> data, MessageArgs args, ProtocolConnection conn)
         {
             if (data.Length == 0) return;
@@ -90,6 +106,13 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
             object message = Serializations.Deserialize(data.Slice(1), msg.MessageType);
             msg.Handler.DynamicInvoke(message, new MessageInfo(conn));
         }
+        /// <summary>
+        /// Serializes a given message and sends it to the protocol connection.
+        /// </summary>
+        /// <typeparam name="T">Type of the message. Needs to be marked with an <see cref="MessageAttribute"/>.</typeparam>
+        /// <param name="message">The message object/value.</param>
+        /// <param name="conn">The protocol connection to whose end the message should be sent.</param>
+        /// <exception cref="ArgumentException">Thrown when <typeparamref name="T"/> is not a known message type.</exception>
         internal void SendMessage<T>(T message, ProtocolConnection conn)
         {
             if (!MessageDefinitionsByType.ContainsKey(typeof(T))) throw new ArgumentException("" + typeof(T) + " is not a known message type.");

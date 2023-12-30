@@ -1,22 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Reflection;
 using System.Reflection.Emit;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers;
-using LightBlueFox.Connect.CustomProtocol.Serialization;
 
 namespace LightBlueFox.Connect.Util
 {
+    /// <summary>
+    /// A collection of helper and extension methods often used in the serialization code.
+    /// </summary>
     internal static class SerializationHelpers
     {
-        static MethodInfo slice = typeof(ReadOnlyMemory<byte>).GetMethod("Slice", new[] { typeof(int), typeof(int) }) ?? throw new InvalidOperationException("Could not find slice on memory!");
-        public static void DoSlice(this ILGenerator il, LocalBuilder from, LocalBuilder? len = null, int? intLen = null, bool updateIndex = true, int argIndex = 0, bool debug=false)
+        static readonly MethodInfo slice = typeof(ReadOnlyMemory<byte>).GetMethod("Slice", new[] { typeof(int), typeof(int) }) ?? throw new InvalidOperationException("Could not find slice on memory!");
+        public static void DoSlice(this ILGenerator il, LocalBuilder from, LocalBuilder? len = null, int? intLen = null, bool updateIndex = true, int argIndex = 0, bool debug = false)
         {
-            if ((len == null) == (intLen == null)) throw new ArgumentException("Can either provide int len or local var!");
-            if(debug != true) il.Emit(OpCodes.Ldarga_S, 0);
+            if (len == null == (intLen == null)) throw new ArgumentException("Can either provide int len or local var!");
+            if (debug != true) il.Emit(OpCodes.Ldarga_S, 0);
             il.Emit(OpCodes.Ldloc, from);
             if (intLen != null) il.Emit(OpCodes.Ldc_I4, intLen ?? 0);
             else if (len != null) il.Emit(OpCodes.Ldloc, len);
@@ -43,8 +39,7 @@ namespace LightBlueFox.Connect.Util
 
         public static void WriteLineInt(this ILGenerator il)
         {
-            //il.Emit(OpCodes.Pop);
-            il.Emit(OpCodes.Call, typeof(Console).GetMethod("WriteLine", new[] { typeof(int) }));
+            il.Emit(OpCodes.Call, typeof(Console).GetMethod("WriteLine", new[] { typeof(int) }) ?? throw new Exception());
         }
 
         public static void ForEachMember(Type[] types, Action<MethodInfo, Type>? methodAction = null, Action<Type>? typeAction = null, Action<FieldInfo, Type>? fieldAction = null)
@@ -58,9 +53,9 @@ namespace LightBlueFox.Connect.Util
                     foreach (var nt in nestedTypes)
                     {
                         if (typeAction != null) typeAction(nt);
-                        
 
-                        if (methodAction != null) 
+
+                        if (methodAction != null)
                             foreach (var m in nt.GetMethods())
                             {
                                 methodAction(m, t);
@@ -81,6 +76,6 @@ namespace LightBlueFox.Connect.Util
         }
 
 
-        
+
     }
 }

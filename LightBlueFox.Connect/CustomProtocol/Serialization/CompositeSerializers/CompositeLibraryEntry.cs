@@ -4,33 +4,35 @@ using System.Reflection.Emit;
 
 namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
 {
+    /// <summary>
+    /// A <see cref="SerializationLibraryEntry"/> for a type. Creates custom CIL methods for serialization and deserialization.
+    /// </summary>
+    /// <typeparam name="T">Any type marked with the <see cref="CompositeSerializeAttribute"/> or deriving attributes.</typeparam>
     public class CompositeLibraryEntry<T> : SerializationLibraryEntry<T>
     {
         private struct FieldArgs { public FieldInfo field; public SerializationLibraryEntry entry; }
 
         private static SerializerDelegate<T> buildSerializer(List<FieldArgs> fields, SerializationLibrary l, int? size)
         {
-            // PREP: 
+            // PREP: Get references to often used methods for use in the CIL code below.
             var uintSer = typeof(DefaultSerializers).GetMethod("UInt32_Serialize", new Type[1] { typeof(uint) }) ?? throw new InvalidOperationException("Could not find uint converter...");
             var arrConv = typeof(ReadOnlySpan<byte>).GetMethod("op_Implicit", new Type[1] { typeof(byte[]) }) ?? throw new Exception("Failed to get operator");
             var msWrite = typeof(MemoryStream).GetMethod("Write", new Type[1] { typeof(ReadOnlySpan<byte>) }) ?? throw new Exception("Failed to get Write");
+            var msConstr = typeof(MemoryStream).GetConstructor(new Type[0]) ?? throw new InvalidOperationException("Could not get MemoryStream constructor...");
 
-            Delegate[] paramArray = new Delegate[fields.Count];
-
-
+            Delegate[] serializerParams = new Delegate[fields.Count]; // An array that will be passed to the complete CIL function for it to look up Serilizer delegates for the field types.
+                                                                      // TODO: This feels like a bit of a cheap fix; still in search for a more elegant solution.
 
             DynamicMethod m = new DynamicMethod("EMITD_compser_" + typeof(T), typeof(byte[]), new Type[2] { typeof(T), typeof(Delegate[]) }, true);
             var il = m.GetILGenerator();
 
-            #region CIL
+            #region [CIL] EMITD_compser_<T>
+            var ms = il.DeclareLocal(typeof(MemoryStream));
+            var buffer = il.DeclareLocal(typeof(byte[]));
 
-            #region Setup
-            il.DeclareLocal(typeof(MemoryStream));
-            il.DeclareLocal(typeof(byte[]));
-
-            il.Emit(OpCodes.Newobj, typeof(MemoryStream).GetConstructor(new Type[0]) ?? throw new InvalidOperationException("Could not get MemoryStream constructor...")); // MemoryStream m = new MemoryStream()
-            il.Emit(OpCodes.Stloc_0);                                                                                                                                      //
-            #endregion
+            il.Emit(OpCodes.Newobj, msConstr); // MemoryStream ms = new MemoryStream()
+            il.Emit(OpCodes.Stloc, ms);                                                                                                                                //
+            
 
             for (int fi = 0; fi < fields.Count; fi++)
             {
@@ -39,9 +41,9 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
                 SerializationLibraryEntry entr = fields[fi].entry;
 
                 var delType = typeof(SerializerDelegate<>).MakeGenericType(f.FieldType);
-                paramArray[fi] = entr.SerializerPointer;
-                #region Read Field
-
+                serializerParams[fi] = entr.SerializerPointer;
+                
+                // <--- READ FIELD -->
                 il.Emit(OpCodes.Ldarg_1);
                 il.Emit(OpCodes.Ldc_I4, fi);
                 il.Emit(OpCodes.Ldelem, typeof(Delegate));
@@ -49,55 +51,41 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
 
                 il.Emit(OpCodes.Ldarg_0); //  Puts the object thats being serialized on the eval stack
                 il.Emit(OpCodes.Ldfld, f); // Push the field value onto the stack
+                // <------ / -------> STATE:  Stack (top to bottom) FIELDVAL | SERIALIZER
 
-                #endregion
-
-                //STATE: Now the value of the field is on the stack.                          | STACKTOP | [FIELDVAL] | STACKEND |
-                #region Convert To Bytes
-
-                il.Emit(OpCodes.Callvirt, delType.GetMethod("Invoke") ?? throw new InvalidOperationException("Could not get invoke method on delegate type..."));
-                il.Emit(OpCodes.Stloc_1);
-                #endregion
-
-                #region Optional Size Prefix
+                il.Emit(OpCodes.Callvirt, 
+                    delType.GetMethod("Invoke") ?? throw new InvalidOperationException("Could not get invoke method on delegate type..."));
+                il.Emit(OpCodes.Stloc, buffer);
+                
+                // Write entry length as prefix if not fixed
                 if (!entr.IsFixedSize)
                 {
-                    il.Emit(OpCodes.Ldloc_0); // MemoryStream
-                    il.Emit(OpCodes.Ldloc_1); // byte[], MemoryStream
+                    il.Emit(OpCodes.Ldloc, ms); 
+                    il.Emit(OpCodes.Ldloc, buffer); 
 
-                    il.Emit(OpCodes.Ldlen); // uint32, MemoryStream
-                    il.Emit(OpCodes.Call, uintSer); // byte[], MemoryStream
+                    il.Emit(OpCodes.Ldlen); 
+                    il.Emit(OpCodes.Call, uintSer); 
 
-                    il.Emit(OpCodes.Call, arrConv); // ReadOnlySpan<byte>, MemoryStream
-                    il.Emit(OpCodes.Callvirt, msWrite); // ...
+                    il.Emit(OpCodes.Call, arrConv); // Convert to span for memory stream write
+                    il.Emit(OpCodes.Callvirt, msWrite);
                 }
-                #endregion
 
-                #region Write Bytes
-
-
-
-                il.Emit(OpCodes.Ldloc_0);
-                il.Emit(OpCodes.Ldloc_1);
+                il.Emit(OpCodes.Ldloc, ms);
+                il.Emit(OpCodes.Ldloc, buffer);
                 il.Emit(OpCodes.Call, arrConv); // Convert to span for memory stream write
-                il.Emit(OpCodes.Callvirt, msWrite); // Write to stream
-
-                #endregion
+                il.Emit(OpCodes.Callvirt, msWrite); 
 
             }
 
-            #region Return Bytes
-            il.Emit(OpCodes.Ldloc_0);
+            il.Emit(OpCodes.Ldloc, ms);
             il.Emit(OpCodes.Callvirt, typeof(MemoryStream).GetMethod("ToArray") ?? throw new InvalidOperationException("Could not find MemoryStream.ToArray()"));
             il.Emit(OpCodes.Ret);
-            #endregion
-
             #endregion
 
             var del = (Func<T, Delegate[], byte[]>)m.CreateDelegate(typeof(Func<T, Delegate[], byte[]>));
             return (ob) =>
             {
-                byte[] res = del(ob, paramArray);
+                byte[] res = del(ob, serializerParams);
                 if (size != null && res.Length != size) throw new InvalidOperationException("Created buffer was of size " + res.Length + " not the expected " + size);
                 return res;
             };
@@ -105,13 +93,16 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
 
         private static DeserializerDelegate<T> buildDefaultDeserializer(List<FieldArgs> fields, SerializationLibrary l, int? size)
         {
-            Delegate[] paramArray = new Delegate[fields.Count];
-
+            // PREP: Get references to often used methods for use in the CIL code below.
             var uintDes = typeof(DefaultSerializers).GetMethod("UInt32_Deserialize", new Type[1] { typeof(ReadOnlyMemory<byte>) }) ?? throw new InvalidOperationException("Could not find uint converter");
-
+            var activator = typeof(Activator).GetMethod("CreateInstance", new Type[1] { typeof(Type) }) ?? throw new("Could not get activator method");
+            
+            Delegate[] deserializerParams = new Delegate[fields.Count]; // The deserilizers passed to the build CIL method. TODO: more elegant solution
+            
             DynamicMethod m = new DynamicMethod("EMITD_compdeser_" + typeof(T), typeof(T), new Type[3] { typeof(ReadOnlyMemory<byte>), typeof(Delegate[]), typeof(Type) }, true);
             var il = m.GetILGenerator();
 
+            #region [CIL] EMITD_compdeser_<T> 
             var bufferIndex = il.DeclareLocal(typeof(int));
             var obj = il.DeclareLocal(typeof(T));
             var len = il.DeclareLocal(typeof(uint));
@@ -119,10 +110,9 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
             il.Emit(OpCodes.Ldc_I4_0);
             il.Emit(OpCodes.Stloc, bufferIndex);
 
-
-
+            // Creates a new instance of the T type, with all fields uninitialized.
             il.Emit(OpCodes.Ldarg_2);
-            il.Emit(OpCodes.Call, typeof(Activator).GetMethod("CreateInstance", new Type[1] { typeof(Type) }) ?? throw new("Could not get activator method"));
+            il.Emit(OpCodes.Call, activator);
             il.Emit(OpCodes.Stloc, obj);
 
             for (int i = 0; i < fields.Count; i++)
@@ -131,8 +121,9 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
                 SerializationLibraryEntry entry = fields[i].entry;
 
                 var delType = typeof(DeserializerDelegate<>).MakeGenericType(field.FieldType);
-                paramArray[i] = entry.DeserializerPointer;
+                deserializerParams[i] = entry.DeserializerPointer;
 
+                // Value types need to be loaded by address.
                 if (typeof(T).IsValueType) il.Emit(OpCodes.Ldloca_S, obj);
                 else il.Emit(OpCodes.Ldloc, obj);
 
@@ -140,6 +131,7 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
                 il.Emit(OpCodes.Ldc_I4, i);
                 il.Emit(OpCodes.Ldelem, typeof(Delegate));
 
+                // Get field bytes by getting the lenght either from the prefix or the definition if fixedsize.
                 if (!entry.IsFixedSize)
                 {
                     il.DoSlice(bufferIndex, intLen: sizeof(uint));
@@ -153,30 +145,33 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
                     il.DoSlice(bufferIndex, intLen: entry.FixedSize ?? throw new("Attribute says fixed size but fixed size is null!"));
                 }
 
-
+                // Call deserializer and store return value at the field in the object shell
                 il.Emit(OpCodes.Callvirt, delType.GetMethod("Invoke") ?? throw new("No invoke!"));
                 il.Emit(OpCodes.Stfld, field);
             }
             il.Emit(OpCodes.Ldloc, obj);
             il.Emit(OpCodes.Ret);
+            #endregion
 
-
-
-            var del = (Func<ReadOnlyMemory<byte>, Delegate[], Type, T>)m.CreateDelegate<Func<ReadOnlyMemory<byte>, Delegate[], Type, T>>();
+            var del = m.CreateDelegate<Func<ReadOnlyMemory<byte>, Delegate[], Type, T>>();
             return (m) =>
             {
                 if (size != null && m.Length != size) throw new ArgumentException("Need buffer of len " + size + ", only got len " + m.Length);
-                return del(m, paramArray, typeof(T));
+                return del(m, deserializerParams, typeof(T));
             };
         }
 
-        private static (int?, SerializerDelegate<T>, DeserializerDelegate<T>) getConstructorArgs(Type t, SerializationLibrary l)
+        /// <summary>
+        /// Discoveres the fields of T and passes them as well as the corresponding <see cref="SerializationLibraryEntry"/>(s) to the build methods.
+        /// </summary>
+        private static (int?, SerializerDelegate<T>, DeserializerDelegate<T>) buildSerializationMethods(Type t, SerializationLibrary l)
         {
             if (t.IsArray || t.IsAbstract || t.IsEnum) throw new InvalidOperationException("Cannot be used on arrays/abstract/enum types");
 
             List<FieldArgs> args = new List<FieldArgs>();
             int? fixedSize = 0;
 
+            // This will retrieve all fields no matter the visibility.
             foreach (var field in RuntimeReflectionExtensions.GetRuntimeFields(typeof(T)))
             {
                 if (field.IsStatic) continue;
@@ -198,11 +193,14 @@ namespace LightBlueFox.Connect.CustomProtocol.Serialization.CompositeSerializers
             }
 
             return (fixedSize, buildSerializer(args, l, fixedSize), buildDefaultDeserializer(args, l, fixedSize));
-
         }
 
         private CompositeLibraryEntry((int?, SerializerDelegate<T>, DeserializerDelegate<T>) args) : base(args.Item1, args.Item2, args.Item3) { }
 
-        public CompositeLibraryEntry(SerializationLibrary l) : this(getConstructorArgs(typeof(T), l)) { }
+        /// <summary>
+        /// Create a new entry for <typeparamref name="T"/>.
+        /// </summary>
+        /// <param name="l">Provides the methods for serializing the fields of <typeparamref name="T"/>.</param>
+        public CompositeLibraryEntry(SerializationLibrary l) : this(buildSerializationMethods(typeof(T), l)) { }
     }
 }
