@@ -34,7 +34,6 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
 
             wrappedServer = new Server(validators, sources);
             wrappedServer.OnConnectionDisconnected += handleConnectionDisconnected;
-            OnConnectionDisconnected += handleConnectionDisconnected;
             wrappedServer.MessageHandler += (d, a) => { Protocol.MessageHandler(d, a, connections[a.Sender]); };
             wrappedServer.OnConnectionValidated += handleConnectionValidated;
         }
@@ -42,18 +41,27 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
         /// <summary>
         /// Triggered when an already established & validated <see cref="ProtocolConnection"/> terminates the connection for any reason.
         /// </summary>
-        public event ConnectionDisconnectedHandler OnConnectionDisconnected
+        public event ProtocolConnectionDisconnectedHandler? OnConnectionDisconnected;
+
+        /// <summary>
+        /// Triggered when a new <see cref="ProtocolConnection"/> is validated.
+        /// </summary>
+        public event ProtocolConnectionValidatedHandler? OnConnectionValidated;
+        
+        /// <summary>
+        /// Triggered when validating a new <see cref="ProtocolConnection"/> failed.
+        /// </summary>
+        public event ValidatingClientFailedHandler? OnValidatingClientFailed
         {
             add
             {
-                wrappedServer.OnConnectionDisconnected += value;
+                wrappedServer.OnValidationFailed += value;
             }
             remove
             {
-                wrappedServer.OnConnectionDisconnected -= value;
+                wrappedServer.OnValidationFailed -= value;
             }
         }
-
 
         private Server wrappedServer;
         private Dictionary<Connection, ProtocolConnection> connections = new();
@@ -61,10 +69,16 @@ namespace LightBlueFox.Connect.CustomProtocol.Protocol
         private void handleConnectionValidated(Connection c, Server sender)
         {
             connections.Add(c, ProtocolConnection.CreateWithoutValidation(Protocol, c));
+            Task.Run(() => { OnConnectionValidated?.Invoke(connections[c], this); });
         }
         private void handleConnectionDisconnected(Connection c, Exception? ex)
         {
+            var pc = connections[c];
             connections.Remove(c);
+            Task.Run(() => { OnConnectionDisconnected?.Invoke(pc, this); });
         }
     }
+
+    public delegate void ProtocolConnectionValidatedHandler(ProtocolConnection c, ProtocolServer sender);
+    public delegate void ProtocolConnectionDisconnectedHandler(ProtocolConnection c, ProtocolServer sender);
 }
